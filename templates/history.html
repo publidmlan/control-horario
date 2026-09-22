@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar">
+    <div class="nav-brand">Control Horario</div>
+    <div class="nav-links">
+        <a href="/dashboard" class="nav-link">Inicio</a>
+        <a href="/calendar" class="nav-link">Calendario</a>
+        <a href="/history" class="nav-link active">Historial</a>
+        <a href="/reports" class="nav-link">Informes</a>
+        <a href="/settings" class="nav-link">Ajustes</a>
+    </div>
+    <button class="nav-toggle" onclick="toggleNav()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+</nav>
+
+<div class="container">
+    <div class="history-header">
+        <div class="month-selector">
+            <button class="btn btn-icon" onclick="changeMonth(-1)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+            </button>
+            <h2 id="historyTitle"></h2>
+            <button class="btn btn-icon" onclick="changeMonth(1)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+            </button>
+        </div>
+        <button class="btn btn-secondary" onclick="exportCSV()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21,15v4a2,2,0,0,1-2,2H5a2,2,0,0,1-2-2V15"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar CSV
+        </button>
+    </div>
+
+    <div id="entriesList" class="history-list"></div>
+    <div id="historyTotal" class="history-total"></div>
+</div>
+
+<div id="editModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Editar registro</h3>
+            <button class="btn btn-icon" onclick="closeModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <form id="editForm">
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label for="editDate">Fecha</label>
+                <input type="date" id="editDate" required>
+            </div>
+            <div class="form-row" id="editTimeRow">
+                <div class="form-group">
+                    <label for="editTimeIn">Entrada</label>
+                    <input type="time" id="editTimeIn" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTimeOut">Salida</label>
+                    <input type="time" id="editTimeOut">
+                </div>
+            </div>
+            <div class="shift-group" id="editShiftGroup">
+                <span class="form-label">Turno:</span>
+                <div class="shift-toggle">
+                    <button type="button" class="shift-btn active" data-shift="manana" onclick="setEditShift('manana')">Manana</button>
+                    <button type="button" class="shift-btn" data-shift="tarde" onclick="setEditShift('tarde')">Tarde</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Notas</label>
+                <input type="text" id="editNotes" placeholder="Opcional">
+            </div>
+            <div class="type-group">
+                <span class="form-label">Tipo:</span>
+                <div class="type-toggle">
+                    <button type="button" class="type-btn active" data-type="presencial" onclick="setEditType('presencial')">Presencial</button>
+                    <button type="button" class="type-btn" data-type="teletrabajo" onclick="setEditType('teletrabajo')">Teletrabajo</button>
+                    <button type="button" class="type-btn" data-type="vacaciones" onclick="setEditType('vacaciones')">Vacaciones</button>
+                    <button type="button" class="type-btn" data-type="ap" onclick="setEditType('ap')">AP</button>
+                    <button type="button" class="type-btn" data-type="otro" onclick="setEditType('otro')">Otro</button>
+                    <button type="button" class="type-btn" data-type="festivo" onclick="setEditType('festivo')">Festivo</button>
+                </div>
+            </div>
+            <div class="special-note festivo-lock" id="festivoLock" style="display:none">Un dia festivo no puede cambiar a otro tipo. Para desmarcarlo, elimina el registro.</div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-danger" onclick="deleteEntry()">Eliminar</button>
+                <div class="modal-actions-right">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+let currentMonth = new Date().getMonth() + 1;
+let currentYear = new Date().getFullYear();
+let schedule = {morning_start:'07:00', morning_end:'14:30', afternoon_start:'14:31', afternoon_end:'19:00'};
+let editShifts = ['manana'];
+
+function toggleNav() { document.querySelector('.nav-links').classList.toggle('show'); }
+let editType = 'presencial';
+
+const SPECIAL_TYPES = ['festivo', 'vacaciones', 'ap', 'otro'];
+const TYPE_LABELS = {presencial: 'Presencial', teletrabajo: 'Teletrabajo', festivo: 'Festivo', vacaciones: 'Vacaciones', ap: 'Asuntos Propios', otro: 'Otro'};
+const BADGE_CLASS = {presencial: 'presencial', teletrabajo: 'tele', festivo: 'festivo', vacaciones: 'vacaciones', ap: 'ap', otro: 'otro'};
+function isSpecial(t) { return SPECIAL_TYPES.indexOf(t) !== -1; }
+
+function setEditType(type) {
+    editType = type;
+    document.querySelectorAll('#editModal .type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    const timeRow = document.getElementById('editTimeRow');
+    const shiftGroup = document.getElementById('editShiftGroup');
+    const timeIn = document.getElementById('editTimeIn');
+    if (isSpecial(type)) {
+        timeRow.style.display = 'none';
+        shiftGroup.style.display = 'none';
+        timeIn.removeAttribute('required');
+    } else {
+        timeRow.style.display = 'flex';
+        shiftGroup.style.display = 'flex';
+        timeIn.setAttribute('required', '');
+    }
+}
+
+function timeKey(t) {
+    if (!t) return 0;
+    const p = t.split(':').map(Number);
+    return (p[0] || 0) * 60 + (p[1] || 0);
+}
+
+function prevMinute(t) {
+    const m = timeKey(t);
+    const km = m > 0 ? m - 1 : 0;
+    return String(Math.floor(km / 60)).padStart(2, '0') + ':' + String(km % 60).padStart(2, '0');
+}
+
+function shiftArr(arr, s) {
+    const idx = arr.indexOf(s);
+    if (idx === -1) arr.push(s);
+    else arr.splice(idx, 1);
+    if (arr.length === 0) arr.push(s === 'manana' ? 'tarde' : 'manana');
+    return arr;
+}
+
+function renderShiftButtons(arr) {
+    document.querySelectorAll('#editShiftGroup .shift-btn').forEach(b => b.classList.toggle('active', arr.indexOf(b.dataset.shift) !== -1));
+}
+
+function shiftsForEntry(timeIn, timeOut) {
+    const startsMorning = timeKey(timeIn) < timeKey(schedule.afternoon_start);
+    const spansAfternoon = timeOut && timeKey(timeOut) > timeKey(schedule.afternoon_start);
+    if (startsMorning && spansAfternoon) return ['manana', 'tarde'];
+    if (startsMorning) return ['manana'];
+    return ['tarde'];
+}
+
+function applyShiftConstraints() {
+    const inEl = document.getElementById('editTimeIn');
+    const outEl = document.getElementById('editTimeOut');
+    const hasMor = editShifts.indexOf('manana') !== -1;
+    const hasTar = editShifts.indexOf('tarde') !== -1;
+    inEl.min = hasTar && !hasMor ? schedule.afternoon_start : schedule.morning_start;
+    inEl.max = hasMor && !hasTar ? prevMinute(schedule.afternoon_start) : schedule.afternoon_end;
+    outEl.min = schedule.morning_start;
+    outEl.max = schedule.afternoon_end;
+}
+
+function setEditShift(s) {
+    editShifts = shiftArr(editShifts, s);
+    renderShiftButtons(editShifts);
+    applyShiftConstraints();
+}
+
+function editEntry(id, date, timeIn, timeOut, notes, type) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editDate').value = date;
+    const locked = type === 'festivo';
+    const special = isSpecial(type);
+    setEditType(type && TYPE_LABELS[type] ? type : 'presencial');
+    document.getElementById('editTimeIn').value = special ? '' : timeIn;
+    document.getElementById('editTimeOut').value = special ? '' : timeOut;
+    editShifts = special ? ['manana'] : shiftsForEntry(timeIn, timeOut);
+    renderShiftButtons(editShifts);
+    applyShiftConstraints();
+    document.getElementById('editNotes').value = notes;
+    document.getElementById('festivoLock').style.display = locked ? 'block' : 'none';
+    document.querySelectorAll('#editModal .type-btn').forEach(b => {
+        b.disabled = locked;
+        b.style.opacity = locked ? '0.55' : '1';
+        b.style.cursor = locked ? 'not-allowed' : 'pointer';
+    });
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function fmtHours(h) {
+    const hInt = Math.floor(h);
+    const m = Math.round((h - hInt) * 60);
+    return hInt + 'h ' + String(m).padStart(2, '0') + 'min';
+}
+
+async function loadHistory() {
+    const res = await fetch(`/api/entries?month=${currentMonth}&year=${currentYear}`);
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    const data = await res.json();
+
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    document.getElementById('historyTitle').textContent = months[currentMonth - 1] + ' ' + currentYear;
+
+    const list = document.getElementById('entriesList');
+    if (data.entries.length === 0) {
+        list.innerHTML = '<p class="empty-msg">No hay registros este mes</p>';
+        document.getElementById('historyTotal').innerHTML = '';
+        return;
+    }
+
+    let total = 0;
+    const grouped = {};
+    data.entries.forEach(e => {
+        if (!grouped[e.date]) grouped[e.date] = {weekday: e.weekday, entries: [], total: 0};
+        grouped[e.date].entries.push(e);
+        grouped[e.date].total += e.total_hours || 0;
+        total += e.total_hours || 0;
+    });
+
+    let html = '';
+    for (const [date, group] of Object.entries(grouped)) {
+        const d = new Date(date + 'T12:00:00');
+        const dayName = d.toLocaleDateString('es-ES', {weekday: 'short', day: 'numeric', month: 'short'});
+        html += `<div class="history-day">
+            <div class="history-day-header">
+                <span>${dayName}</span>
+                <span class="history-day-total">${fmtHours(group.total)}</span>
+            </div>`;
+        group.entries.forEach(e => {
+            const sp = isSpecial(e.entry_type);
+            const label = TYPE_LABELS[e.entry_type] || e.entry_type;
+            const timeText = sp ? label : `${e.time_in} - ${e.time_out || '...'}`;
+            const bc = BADGE_CLASS[e.entry_type] || 'presencial';
+            const shiftBadge = !sp && e.shift ? `<span class="shift-badge ${e.has_morning && e.has_afternoon ? 'both' : e.shift}">${e.has_morning && e.has_afternoon ? 'Manana / Tarde' : (e.shift === 'manana' ? 'Manana' : 'Tarde')}</span>` : '';
+            html += `<div class="history-entry">
+                <span class="entry-time" onclick="editEntry(${e.id}, '${e.date}', '${e.time_in}', '${e.time_out || ''}', '${(e.notes || '').replace(/'/g, "\\'")}', '${e.entry_type}')">${timeText} <span class="type-badge ${bc}">${label === 'Asuntos Propios' ? 'AP' : label}</span> ${shiftBadge}</span>
+                <div class="entry-actions">
+                    <span class="entry-total" onclick="editEntry(${e.id}, '${e.date}', '${e.time_in}', '${e.time_out || ''}', '${(e.notes || '').replace(/'/g, "\\'")}', '${e.entry_type}')">${e.total_hours ? fmtHours(e.total_hours) : (sp ? '' : '...')}</span>
+                    <button class="btn-delete-entry" onclick="event.stopPropagation(); quickDelete(${e.id})" title="Eliminar">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+    }
+    list.innerHTML = html;
+    document.getElementById('historyTotal').innerHTML = `<span>Total del mes:</span><span class="total-hours">${fmtHours(total)}</span>`;
+}
+
+function closeModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const body = {
+        date: document.getElementById('editDate').value,
+        notes: document.getElementById('editNotes').value,
+        entry_type: editType
+    };
+    if (!isSpecial(editType)) {
+        body.time_in = document.getElementById('editTimeIn').value + ':00';
+        body.time_out = document.getElementById('editTimeOut').value ? document.getElementById('editTimeOut').value + ':00' : null;
+    }
+    const res = await fetch('/api/entries/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    if (res.ok) {
+        showToast('Registro actualizado');
+        closeModal();
+        loadHistory();
+    } else {
+        const err = await res.json();
+        showToast(err.detail || 'Error al guardar', true);
+    }
+});
+
+async function deleteEntry() {
+    if (!confirm('¿Eliminar este registro?')) return;
+    const id = document.getElementById('editId').value;
+    const res = await fetch('/api/entries/' + id, {method: 'DELETE'});
+    if (res.ok) {
+        showToast('Registro eliminado');
+        closeModal();
+        loadHistory();
+    }
+}
+
+async function quickDelete(id) {
+    if (!confirm('Eliminar este registro?')) return;
+    const res = await fetch('/api/entries/' + id, {method: 'DELETE'});
+    if (res.ok) {
+        showToast('Registro eliminado');
+        loadHistory();
+    }
+}
+
+function exportCSV() {
+    window.open(`/api/export/csv?month=${currentMonth}&year=${currentYear}`, '_blank');
+}
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    loadHistory();
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show';
+    setTimeout(() => t.className = 'toast', 3000);
+}
+
+async function loadSchedule() {
+    try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.schedule) schedule = data.schedule;
+        }
+    } catch(e) {}
+}
+
+loadSchedule().then(() => loadHistory());
+</script>
+{% endblock %}

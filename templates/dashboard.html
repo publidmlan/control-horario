@@ -1,0 +1,702 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar">
+    <div class="nav-brand">Control Horario</div>
+    <div class="nav-links">
+        <a href="/dashboard" class="nav-link active">Inicio</a>
+        <a href="/calendar" class="nav-link">Calendario</a>
+        <a href="/history" class="nav-link">Historial</a>
+        <a href="/reports" class="nav-link">Informes</a>
+        <a href="/settings" class="nav-link">Ajustes</a>
+    </div>
+    <button class="nav-toggle" onclick="toggleNav()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+</nav>
+
+<div class="container">
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-card-label" id="todayCardLabel">Hoy</div>
+            <div id="todayTotal" class="summary-card-value">0h 00min</div>
+            <div class="summary-card-detail" id="todayEntriesCount">0 registros</div>
+        </div>
+        <div class="summary-card highlight">
+            <div class="summary-card-label" id="weekCardLabel">Esta semana</div>
+            <div id="weekTotal" class="summary-card-value">0h 00min</div>
+            <div class="summary-card-detail" id="weekDaysCount">0 dias trabajados</div>
+            <div class="day-breakdown" id="weekBreakdownWrap" style="display:none">
+                <span class="day-breakup">Manana: <b id="weekMorningH">0h 00min</b></span>
+                <span class="day-breakup">Tarde: <b id="weekAfternoonH">0h 00min</b></span>
+            </div>
+            <div class="afternoon-obj" id="weekAfternoonObj" style="display:none">
+                Objetivo jornada de tarde: <b id="weekAfternoonObjVal">0h 00min</b>
+                <span id="weekAfternoonObjReason" class="afternoon-obj-reason"></span>
+            </div>
+        </div>
+        <div class="summary-card remaining-card">
+            <div class="summary-card-label">Quedan</div>
+            <div id="remainingHours" class="summary-card-value remaining-value">0h 00min</div>
+            <div class="summary-card-detail" id="targetInfo">de 35h semanales</div>
+            <div class="afternoon-obj" id="weekAfternoonDiscount" style="display:none">
+                Jornada de tarde reducida: <b id="weekAfternoonDiscountVal">0h 00min</b>
+                <span id="weekAfternoonDiscountReason" class="afternoon-obj-reason"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="week-detail">
+        <div class="week-nav-header">
+            <div class="week-nav-row">
+                <button class="btn btn-icon" onclick="changeWeek(-1)" title="Semana anterior">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+                </button>
+                <div class="week-title-col">
+                    <div id="weekRangeLabel" class="week-range-label">Semana actual</div>
+                    <select id="monthSelect" class="month-select" onchange="onMonthChange()"></select>
+                </div>
+                <button class="btn btn-icon" onclick="changeWeek(1)" title="Semana siguiente">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </button>
+            </div>
+            <button id="goCurrentBtn" class="btn btn-secondary btn-go-current" onclick="goCurrentWeek()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+                Semana actual
+            </button>
+        </div>
+        <div id="weekDays" class="week-days-grid"></div>
+        <div id="weekTypeBreakdown" class="type-breakdown"></div>
+        <div class="week-total-row">
+            <span>Total semana:</span>
+            <span id="viewWeekTotal" class="total-hours">0h 00min</span>
+        </div>
+    </div>
+
+    <div class="today-summary">
+        <h3 id="dayEntriesTitle">Registros de hoy</h3>
+        <div id="dayEntries" class="entries-list">
+            <p class="empty-msg">No hay registros</p>
+        </div>
+        <div class="today-total" id="dayEntriesTotalWrap" style="display:none">
+            <span>Total del dia:</span>
+            <span id="dayEntriesTotal" class="total-hours">0h 00min</span>
+        </div>
+        <div class="day-breakdown" id="dayBreakdownWrap" style="display:none">
+            <span class="day-breakup">Manana: <b id="dayMorningH">0h 00min</b></span>
+            <span class="day-breakup">Tarde: <b id="dayAfternoonH">0h 00min</b></span>
+            <span class="day-breakup lunch" id="dayLunchWrap">Interrupcion comida descontada: <b id="dayLunchH">-0h 00min</b></span>
+        </div>
+    </div>
+
+    <div class="add-entry-section">
+        <h3>Anadir registro</h3>
+        <form id="addEntryForm" class="manual-form">
+            <div class="form-row" id="entryTimeRow">
+                <div class="form-group">
+                    <label for="entryDate">Fecha</label>
+                    <input type="date" id="entryDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="entryTimeIn">Entrada</label>
+                    <input type="time" id="entryTimeIn" required>
+                </div>
+                <div class="form-group">
+                    <label for="entryTimeOut">Salida</label>
+                    <input type="time" id="entryTimeOut">
+                </div>
+            </div>
+            <div class="type-group">
+                <span class="form-label">Tipo:</span>
+                <div class="type-toggle">
+                    <button type="button" class="type-btn active" data-type="presencial" onclick="setEntryType('presencial')">Presencial</button>
+                    <button type="button" class="type-btn" data-type="teletrabajo" onclick="setEntryType('teletrabajo')">Teletrabajo</button>
+                    <button type="button" class="type-btn" data-type="vacaciones" onclick="setEntryType('vacaciones')">Vacaciones</button>
+                    <button type="button" class="type-btn" data-type="ap" onclick="setEntryType('ap')">AP</button>
+                    <button type="button" class="type-btn" data-type="otro" onclick="setEntryType('otro')">Otro</button>
+                    <button type="button" class="type-btn" data-type="festivo" onclick="setEntryType('festivo')">Festivo</button>
+                </div>
+            </div>
+            <div class="special-note" id="specialDayNote" style="display:none"></div>
+            <button type="submit" class="btn btn-primary btn-full">Anadir</button>
+        </form>
+    </div>
+</div>
+
+<div id="editModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Editar registro</h3>
+            <button class="btn btn-icon" onclick="closeEditModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <form id="editForm">
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label for="editDate">Fecha</label>
+                <input type="date" id="editDate" required>
+            </div>
+            <div class="form-row" id="editTimeRow">
+                <div class="form-group">
+                    <label for="editTimeIn">Entrada</label>
+                    <input type="time" id="editTimeIn" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTimeOut">Salida</label>
+                    <input type="time" id="editTimeOut">
+                </div>
+            </div>
+            <div class="shift-group" id="editShiftGroup">
+                <span class="form-label">Turno:</span>
+                <div class="shift-toggle">
+                    <button type="button" class="shift-btn active" data-shift="manana" onclick="setEditShift('manana')">Manana</button>
+                    <button type="button" class="shift-btn" data-shift="tarde" onclick="setEditShift('tarde')">Tarde</button>
+                </div>
+            </div>
+            <div class="type-group">
+                <span class="form-label">Tipo:</span>
+                <div class="type-toggle">
+                    <button type="button" class="type-btn active" data-type="presencial" onclick="setEditType('presencial')">Presencial</button>
+                    <button type="button" class="type-btn" data-type="teletrabajo" onclick="setEditType('teletrabajo')">Teletrabajo</button>
+                    <button type="button" class="type-btn" data-type="vacaciones" onclick="setEditType('vacaciones')">Vacaciones</button>
+                    <button type="button" class="type-btn" data-type="ap" onclick="setEditType('ap')">AP</button>
+                    <button type="button" class="type-btn" data-type="otro" onclick="setEditType('otro')">Otro</button>
+                    <button type="button" class="type-btn" data-type="festivo" onclick="setEditType('festivo')">Festivo</button>
+                </div>
+            </div>
+            <div class="special-note festivo-lock" id="festivoLock" style="display:none">Un dia festivo no puede cambiar a otro tipo. Para desmarcarlo, elimina el registro.</div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-danger" onclick="deleteEntry(document.getElementById('editId').value)">Eliminar</button>
+                <div class="modal-actions-right">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+let selectedDate = new Date().toISOString().split('T')[0];
+let viewWeekStart = getMonday(selectedDate);
+let entryType = 'presencial';
+let editShifts = ['manana'];
+let defaultTeleworkDays = [];
+let teleworkPctTarget = 0;
+let presencialPctTarget = 100;
+let specialByDate = {};
+let schedule = {morning_start:'07:00', morning_end:'14:30', afternoon_start:'14:31', afternoon_end:'19:00'};
+
+const SPECIAL_TYPES = ['festivo', 'vacaciones', 'ap', 'otro'];
+const TYPE_LABELS = {presencial: 'Presencial', teletrabajo: 'Teletrabajo', festivo: 'Festivo', vacaciones: 'Vacaciones', ap: 'Asuntos Propios', otro: 'Otro'};
+const BADGE_CLASS = {presencial: 'presencial', teletrabajo: 'tele', festivo: 'festivo', vacaciones: 'vacaciones', ap: 'ap', otro: 'otro'};
+function isSpecial(t) { return SPECIAL_TYPES.indexOf(t) !== -1; }
+
+function setEntryType(type) {
+    entryType = type;
+    document.querySelectorAll('#addEntryForm .type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    const timeRow = document.getElementById('entryTimeRow');
+    const timeIn = document.getElementById('entryTimeIn');
+    if (isSpecial(type)) {
+        timeRow.style.display = 'none';
+        timeIn.removeAttribute('required');
+    } else {
+        timeRow.style.display = 'flex';
+        timeIn.setAttribute('required', '');
+    }
+}
+
+function timeKey(t) {
+    if (!t) return 0;
+    const parts = t.split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+
+function prevMinute(t) {
+    const m = timeKey(t);
+    const km = m > 0 ? m - 1 : 0;
+    return String(Math.floor(km / 60)).padStart(2, '0') + ':' + String(km % 60).padStart(2, '0');
+}
+
+function shiftArr(arr, s) {
+    const idx = arr.indexOf(s);
+    if (idx === -1) arr.push(s);
+    else arr.splice(idx, 1);
+    if (arr.length === 0) arr.push(s === 'manana' ? 'tarde' : 'manana');
+    return arr;
+}
+
+function renderShiftButtons(arr) {
+    document.querySelectorAll('#editShiftGroup .shift-btn').forEach(b => b.classList.toggle('active', arr.indexOf(b.dataset.shift) !== -1));
+}
+
+function shiftsForEntry(timeIn, timeOut) {
+    const startsMorning = timeKey(timeIn) < timeKey(schedule.afternoon_start);
+    const spansAfternoon = timeOut && timeKey(timeOut) > timeKey(schedule.afternoon_start);
+    if (startsMorning && spansAfternoon) return ['manana', 'tarde'];
+    if (startsMorning) return ['manana'];
+    return ['tarde'];
+}
+
+function applyShiftConstraints() {
+    const inEl = document.getElementById('editTimeIn');
+    const outEl = document.getElementById('editTimeOut');
+    const hasMor = editShifts.indexOf('manana') !== -1;
+    const hasTar = editShifts.indexOf('tarde') !== -1;
+    inEl.min = hasTar && !hasMor ? schedule.afternoon_start : schedule.morning_start;
+    inEl.max = hasMor && !hasTar ? prevMinute(schedule.afternoon_start) : schedule.afternoon_end;
+    outEl.min = schedule.morning_start;
+    outEl.max = schedule.afternoon_end;
+}
+
+function setEditShift(s) {
+    editShifts = shiftArr(editShifts, s);
+    renderShiftButtons(editShifts);
+    applyShiftConstraints();
+}
+
+let editType = 'presencial';
+function setEditType(type) {
+    editType = type;
+    document.querySelectorAll('#editModal .type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    const timeRow = document.getElementById('editTimeRow');
+    const shiftGroup = document.getElementById('editShiftGroup');
+    const timeIn = document.getElementById('editTimeIn');
+    if (isSpecial(type)) {
+        timeRow.style.display = 'none';
+        shiftGroup.style.display = 'none';
+        timeIn.removeAttribute('required');
+    } else {
+        timeRow.style.display = 'flex';
+        shiftGroup.style.display = 'flex';
+        timeIn.setAttribute('required', '');
+    }
+}
+
+function openEdit(id, date, timeIn, timeOut, type) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editDate').value = date;
+    const locked = type === 'festivo';
+    const special = isSpecial(type);
+    setEditType(type && TYPE_LABELS[type] ? type : 'presencial');
+    document.getElementById('editTimeIn').value = special ? '' : timeIn;
+    document.getElementById('editTimeOut').value = special ? '' : timeOut;
+    editShifts = special ? ['manana'] : shiftsForEntry(timeIn, timeOut);
+    renderShiftButtons(editShifts);
+    applyShiftConstraints();
+    document.getElementById('festivoLock').style.display = locked ? 'block' : 'none';
+    document.querySelectorAll('#editModal .type-btn').forEach(b => {
+        b.disabled = locked;
+        b.style.opacity = locked ? '0.55' : '1';
+        b.style.cursor = locked ? 'not-allowed' : 'pointer';
+    });
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+function toggleNav() {
+    document.querySelector('.nav-links').classList.toggle('show');
+}
+
+function getMonday(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    const dow = d.getDay() === 0 ? 7 : d.getDay();
+    d.setDate(d.getDate() - dow + 1);
+    return d.toISOString().split('T')[0];
+}
+
+function addDays(dateStr, days) {
+    const d = new Date(dateStr + 'T12:00:00');
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+}
+
+function populateMonths(selectedWeekStart) {
+    const sel = document.getElementById('monthSelect');
+    const [y, m] = selectedWeekStart.split('-').map(Number);
+    const year = new Date().getFullYear();
+    const frag = document.createDocumentFragment();
+    const options = [];
+    for (let yy = year - 1; yy <= year + 1; yy++) {
+        for (let mm = 1; mm <= 12; mm++) {
+            options.push({value: yy + '-' + String(mm).padStart(2, '0'), label: MONTH_NAMES[mm - 1] + ' ' + yy});
+        }
+    }
+    sel.innerHTML = '';
+    options.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        frag.appendChild(opt);
+    });
+    sel.appendChild(frag);
+    sel.value = y + '-' + String(m).padStart(2, '0');
+}
+
+async function loadSummary() {
+    try {
+        const res = await fetch('/api/week?week_start=' + viewWeekStart);
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        const startD = new Date(data.week_start + 'T12:00:00');
+        const endD = new Date(data.week_end + 'T12:00:00');
+        document.getElementById('weekCardLabel').textContent = data.is_current_week ? 'Esta semana' : 'Semana ' + startD.getDate() + '/' + String(startD.getMonth() + 1) + ' - ' + endD.getDate() + '/' + String(endD.getMonth() + 1);
+        document.getElementById('weekTotal').textContent = data.total_week_formatted;
+        const workedDays = data.days_worked;
+        document.getElementById('weekDaysCount').textContent = workedDays + ' dia' + (workedDays !== 1 ? 's' : '') + ' trabajado' + (workedDays !== 1 ? 's' : '');
+        document.getElementById('remainingHours').textContent = data.remaining_formatted;
+        document.getElementById('targetInfo').textContent = 'de ' + data.target_formatted + ' semanales';
+        if (data.afternoon_reduction > 0) {
+            document.getElementById('weekAfternoonDiscountVal').textContent = data.afternoon_reduction_formatted;
+            document.getElementById('weekAfternoonDiscountReason').textContent = '(' + data.days_worked + ' dia' + (data.days_worked !== 1 ? 's' : '') + ' trabajado' + (data.days_worked !== 1 ? 's' : '') + ')';
+            document.getElementById('weekAfternoonDiscount').style.display = 'block';
+        } else {
+            document.getElementById('weekAfternoonDiscount').style.display = 'none';
+        }
+        if (data.total_week > 0) {
+            document.getElementById('weekMorningH').textContent = data.morning_formatted;
+            document.getElementById('weekAfternoonH').textContent = data.afternoon_formatted;
+            document.getElementById('weekBreakdownWrap').style.display = 'flex';
+        } else {
+            document.getElementById('weekBreakdownWrap').style.display = 'none';
+        }
+        if (data.days_worked >= 1) {
+            const reason = '(' + data.days_worked + ' dia' + (data.days_worked !== 1 ? 's' : '') + ' trabajado' + (data.days_worked !== 1 ? 's' : '') + ')';
+            document.getElementById('weekAfternoonObjVal').textContent = data.afternoon_objective_formatted;
+            document.getElementById('weekAfternoonObjReason').textContent = reason;
+            document.getElementById('weekAfternoonObj').style.display = 'block';
+        } else {
+            document.getElementById('weekAfternoonObj').style.display = 'none';
+        }
+    } catch(e) {}
+}
+
+async function loadToday() {
+    try {
+        const res = await fetch('/api/day?date_str=' + selectedDate);
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('todayCardLabel').textContent = data.date === today ? 'Hoy' : dayTitle(data.date);
+        document.getElementById('todayTotal').textContent = data.total_hours;
+        document.getElementById('todayEntriesCount').textContent = data.entries.length + ' registro' + (data.entries.length !== 1 ? 's' : '');
+    } catch(e) {}
+}
+
+function dayTitle(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', {weekday: 'short', day: 'numeric', month: 'short'});
+}
+
+async function loadDay() {
+    try {
+        const res = await fetch('/api/day?date_str=' + selectedDate);
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dayEntriesTitle').textContent = 'Registros de ' + (data.date === today ? 'hoy' : dayTitle(data.date));
+        const container = document.getElementById('dayEntries');
+        if (data.entries.length === 0) {
+            container.innerHTML = '<p class="empty-msg">No hay registros</p>';
+            document.getElementById('dayEntriesTotalWrap').style.display = 'none';
+            document.getElementById('dayBreakdownWrap').style.display = 'none';
+        } else {
+            container.innerHTML = data.entries.map(e => {
+                const sp = isSpecial(e.entry_type);
+                const label = TYPE_LABELS[e.entry_type] || e.entry_type;
+                const timeText = sp ? label : `${e.time_in} - ${e.time_out || '...'}`;
+                const bc = BADGE_CLASS[e.entry_type] || 'presencial';
+                const shiftBadge = !sp && e.shift ? `<span class="shift-badge ${e.has_morning && e.has_afternoon ? 'both' : e.shift}">${e.has_morning && e.has_afternoon ? 'Manana / Tarde' : (e.shift === 'manana' ? 'Manana' : 'Tarde')}</span>` : '';
+                return `
+                <div class="entry-row" onclick="openEdit(${e.id}, '${selectedDate}', '${e.time_in}', '${e.time_out || ''}', '${e.entry_type || 'presencial'}')" style="cursor:pointer">
+                    <div class="entry-main">
+                        <span class="entry-time">${timeText}</span>
+                        <span class="type-badge ${bc}">${label}</span>
+                        ${shiftBadge}
+                    </div>
+                    <div class="entry-actions">
+                        ${!sp && e.time_out ? '<span class="entry-badge">completo</span>' : ''}
+                        ${!sp && !e.time_out ? '<span class="entry-badge pending">abierto</span>' : ''}
+                        <button class="btn-delete-entry" onclick="event.stopPropagation(); deleteEntry(${e.id})" title="Eliminar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('dayEntriesTotal').textContent = data.total_hours;
+            document.getElementById('dayEntriesTotalWrap').style.display = 'flex';
+            document.getElementById('dayMorningH').textContent = data.morning_hours;
+            document.getElementById('dayAfternoonH').textContent = data.afternoon_hours;
+            document.getElementById('dayLunchH').textContent = '-' + data.lunch_deducted;
+            document.getElementById('dayLunchWrap').style.display = data.lunch_deducted !== '0h 00min' ? 'inline-flex' : 'none';
+            document.getElementById('dayBreakdownWrap').style.display = 'flex';
+        }
+    } catch(e) {}
+}
+
+async function loadWeekDetail() {
+    try {
+        const res = await fetch('/api/week?week_start=' + viewWeekStart);
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+
+        const startD = new Date(data.week_start + 'T12:00:00');
+        const endD = new Date(data.week_end + 'T12:00:00');
+        document.getElementById('weekRangeLabel').textContent = 'Semana del ' + startD.getDate() + ' al ' + endD.getDate() + ' de ' + MONTH_NAMES[endD.getMonth()];
+        populateMonths(viewWeekStart);
+
+        const goBtn = document.getElementById('goCurrentBtn');
+        goBtn.style.opacity = data.is_current_week ? '0.5' : '1';
+
+        document.getElementById('viewWeekTotal').textContent = data.total_week_formatted;
+
+        const breakdown = document.getElementById('weekTypeBreakdown');
+        if (data.total_week > 0) {
+            breakdown.innerHTML = `
+                <div class="type-bar">
+                    <div class="type-bar-presencial" style="width:${data.presencial_pct}%"></div>
+                    <div class="type-bar-teletrabajo" style="width:${data.teletrabajo_pct}%"></div>
+                </div>
+                <div class="type-legend">
+                    <span class="legend-item"><span class="legend-dot presencial"></span>Presencial <b>${data.presencial_pct}%</b> (${data.presencial_formatted})</span>
+                    <span class="legend-item"><span class="legend-dot teletrabajo"></span>Teletrabajo <b>${data.teletrabajo_pct}%</b> (${data.teletrabajo_formatted})</span>
+                </div>
+                <div class="type-target">Objetivo semanal: ${data.presencial_pct_target}% presencial (${data.presencial_hours_target}h) / ${data.telework_pct_target}% teletrabajo (${data.teletrabajo_hours_target}h)</div>`;
+            breakdown.style.display = 'block';
+        } else {
+            breakdown.innerHTML = '';
+            breakdown.style.display = 'none';
+        }
+
+        const grid = document.getElementById('weekDays');
+        specialByDate = {};
+        data.days.forEach(d => { if (d.special) specialByDate[d.date] = d.special; });
+        grid.innerHTML = data.days.map(d => {
+            const isSel = d.date === selectedDate;
+            let classes = 'week-day-card';
+            if (d.is_today) classes += ' today';
+            if (isSel) classes += ' selected';
+            if (d.total > 0 && !isSel && !d.is_today) classes += ' worked';
+            if (d.special) classes += ' sp-' + d.special;
+            const hoyTag = d.is_today ? '<div class="week-day-tag">hoy</div>' : '';
+            const dots = (d.has_presencial || d.has_teletrabajo || d.special) ? `<div class="day-type-dots">
+                ${d.special ? '<span class="day-type-dot ' + d.special + '"></span>' : ''}
+                ${d.has_presencial ? '<span class="day-type-dot presencial"></span>' : ''}
+                ${d.has_teletrabajo ? '<span class="day-type-dot teletrabajo"></span>' : ''}
+            </div>` : '';
+            const hours = d.special ? `<div class="week-day-hours">${d.special === 'festivo' ? 'Festivo' : d.special === 'vacaciones' ? 'Vacaciones' : d.special === 'ap' ? 'AP' : 'Otro'}</div>` : `<div class="week-day-hours">${d.total > 0 ? d.total_formatted : '-'}</div>`;
+            return `<div class="${classes}" onclick="selectDay('${d.date}')">
+                <div class="week-day-name">${d.name.substring(0, 3)}</div>
+                <div class="week-day-num">${d.day_num}</div>
+                ${hours}
+                ${hoyTag}
+                ${dots}
+            </div>`;
+        }).join('');
+    } catch(e) {}
+}
+
+function applyDefaultType(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    let wd = d.getDay();
+    wd = wd === 0 ? 6 : wd - 1;
+    if (wd <= 4 && defaultTeleworkDays.includes(wd)) setEntryType('teletrabajo');
+    else setEntryType('presencial');
+}
+
+function selectDay(dateStr) {
+    selectedDate = dateStr;
+    document.getElementById('entryDate').value = dateStr;
+    applyDefaultType(dateStr);
+    const sp = specialByDate[dateStr];
+    const note = document.getElementById('specialDayNote');
+    if (sp) {
+        note.style.display = 'block';
+        note.textContent = 'Dia marcado como ' + (TYPE_LABELS[sp] || sp) + '. Elimina la marca en los registros de abajo para poder anadir registros.';
+    } else {
+        note.style.display = 'none';
+    }
+    loadToday();
+    loadDay();
+    loadWeekDetail();
+}
+
+function changeWeek(delta) {
+    viewWeekStart = addDays(viewWeekStart, delta * 7);
+    loadSummary();
+    loadToday();
+    loadWeekDetail();
+}
+
+function onMonthChange() {
+    const val = document.getElementById('monthSelect').value;
+    const firstDay = val + '-01';
+    viewWeekStart = getMonday(firstDay);
+    loadSummary();
+    loadToday();
+    loadWeekDetail();
+}
+
+function goCurrentWeek() {
+    const today = new Date().toISOString().split('T')[0];
+    viewWeekStart = getMonday(today);
+    selectedDate = today;
+    document.getElementById('entryDate').value = today;
+    loadSummary();
+    loadToday();
+    loadDay();
+    loadWeekDetail();
+}
+
+async function deleteEntry(id) {
+    if (!confirm('Eliminar este registro?')) return;
+    try {
+        const res = await fetch('/api/entries/' + id, {method: 'DELETE'});
+        if (res.ok) {
+            showToast('Registro eliminado');
+            loadDay();
+            loadWeekDetail();
+            loadToday();
+            loadSummary();
+        }
+    } catch(e) { showToast('Error al eliminar', true); }
+}
+
+document.getElementById('addEntryForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const entryDate = document.getElementById('entryDate').value;
+    const timeIn = document.getElementById('entryTimeIn').value + ':00';
+    const timeOut = document.getElementById('entryTimeOut').value ? document.getElementById('entryTimeOut').value + ':00' : null;
+    const body = {date: entryDate, entry_type: entryType};
+    if (!isSpecial(entryType)) {
+        body.time_in = timeIn;
+        body.time_out = timeOut;
+    }
+    try {
+        const res = await fetch('/api/entries/manual', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+        if (res.ok) {
+            showToast('Registro anadido');
+            if (getMonday(entryDate) === viewWeekStart) loadWeekDetail();
+            loadDay();
+            loadToday();
+            loadSummary();
+            if (!isSpecial(entryType)) {
+                document.getElementById('entryTimeIn').value = '';
+                document.getElementById('entryTimeOut').value = '';
+            }
+        } else {
+            const err = await res.json();
+            showToast(err.detail || 'Error al anadir registro', true);
+        }
+    } catch(e) { showToast('Error al anadir registro', true); }
+});
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const body = {
+        date: document.getElementById('editDate').value,
+        notes: '',
+        entry_type: editType
+    };
+    if (!isSpecial(editType)) {
+        body.time_in = document.getElementById('editTimeIn').value + ':00';
+        body.time_out = document.getElementById('editTimeOut').value ? document.getElementById('editTimeOut').value + ':00' : null;
+    }
+    const res = await fetch('/api/entries/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    if (res.ok) {
+        showToast('Registro actualizado');
+        closeEditModal();
+        selectedDate = document.getElementById('editDate').value;
+        document.getElementById('entryDate').value = selectedDate;
+        loadDay();
+        loadWeekDetail();
+        loadToday();
+        loadSummary();
+    } else {
+        const err = await res.json();
+        showToast(err.detail || 'Error al guardar', true);
+    }
+});
+
+document.getElementById('entryDate').addEventListener('change', function() {
+    selectedDate = this.value;
+    const newWeekStart = getMonday(selectedDate);
+    if (newWeekStart !== viewWeekStart) {
+        viewWeekStart = newWeekStart;
+    }
+    applyDefaultType(selectedDate);
+    const sp = specialByDate[selectedDate];
+    const note = document.getElementById('specialDayNote');
+    if (sp) {
+        note.style.display = 'block';
+        note.textContent = 'Dia marcado como ' + (TYPE_LABELS[sp] || sp) + '. Elimina la marca en los registros de abajo para poder anadir registros.';
+    } else {
+        note.style.display = 'none';
+    }
+    loadSummary();
+    loadToday();
+    loadDay();
+    loadWeekDetail();
+});
+
+function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' toast-error' : '');
+    setTimeout(() => t.className = 'toast', 3000);
+}
+
+async function fetchSettings() {
+    try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+            const data = await res.json();
+            defaultTeleworkDays = data.default_telework_days || [];
+            teleworkPctTarget = data.telework_pct;
+            presencialPctTarget = data.presencial_pct;
+            if (data.schedule) {
+                schedule = data.schedule;
+                const inEl = document.getElementById('entryTimeIn');
+                const outEl = document.getElementById('entryTimeOut');
+                inEl.min = schedule.morning_start;
+                inEl.max = schedule.afternoon_end;
+                outEl.min = schedule.morning_start;
+                outEl.max = schedule.afternoon_end;
+                applyShiftConstraints();
+            }
+        }
+    } catch(e) {}
+}
+
+async function init() {
+    document.getElementById('entryDate').value = selectedDate;
+    await fetchSettings();
+    applyDefaultType(selectedDate);
+    loadToday();
+    loadSummary();
+    loadDay();
+    loadWeekDetail();
+}
+
+init();
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar">
+    <div class="nav-brand">Control Horario</div>
+    <div class="nav-links">
+        <a href="/dashboard" class="nav-link">Inicio</a>
+        <a href="/calendar" class="nav-link">Calendario</a>
+        <a href="/history" class="nav-link">Historial</a>
+        <a href="/reports" class="nav-link active">Informes</a>
+        <a href="/settings" class="nav-link">Ajustes</a>
+    </div>
+    <button class="nav-toggle" onclick="toggleNav()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+</nav>
+
+<div class="container">
+    <div class="reports-nav">
+        <button class="btn btn-icon" onclick="changeMonth(-1)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+        </button>
+        <h2 id="reportsTitle"></h2>
+        <button class="btn btn-icon" onclick="changeMonth(1)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+        </button>
+    </div>
+
+    <div class="reports-summary">
+        <div class="report-card highlight">
+            <div class="report-label">Total del mes</div>
+            <div id="monthTotal" class="report-value">0h 00min</div>
+        </div>
+        <div class="report-card">
+            <div class="report-label">Presencial</div>
+            <div id="presencialTotal" class="report-value">0h 00min</div>
+        </div>
+        <div class="report-card tele-card">
+            <div class="report-label">Teletrabajo</div>
+            <div id="teletrabajoTotal" class="report-value">0h 00min</div>
+        </div>
+    </div>
+
+    <div class="reports-special">
+        <div class="report-card festivo-card">
+            <div class="report-label">Festivos</div>
+            <div id="festivoDays" class="report-value">0</div>
+        </div>
+        <div class="report-card vacaciones-card">
+            <div class="report-label">Vacaciones</div>
+            <div id="vacacionesDays" class="report-value">0</div>
+        </div>
+        <div class="report-card ap-card">
+            <div class="report-label">Asuntos Propios</div>
+            <div id="apDays" class="report-value">0</div>
+        </div>
+        <div class="report-card otro-card">
+            <div class="report-label">Otro</div>
+            <div id="otroDays" class="report-value">0</div>
+        </div>
+    </div>
+
+    <div id="weeksContainer"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let currentMonth = new Date().getMonth() + 1;
+let currentYear = new Date().getFullYear();
+
+function toggleNav() { document.querySelector('.nav-links').classList.toggle('show'); }
+
+function fmtHours(h) {
+    const hInt = Math.floor(h);
+    const m = Math.round((h - hInt) * 60);
+    return hInt + 'h ' + String(m).padStart(2, '0') + 'min';
+}
+
+async function loadReports() {
+    const res = await fetch(`/api/report/monthly?month=${currentMonth}&year=${currentYear}`);
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    const data = await res.json();
+
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    document.getElementById('reportsTitle').textContent = months[currentMonth - 1] + ' ' + currentYear;
+    document.getElementById('monthTotal').textContent = data.total_month_formatted;
+    document.getElementById('presencialTotal').textContent = data.presencial_formatted;
+    document.getElementById('teletrabajoTotal').textContent = data.teletrabajo_formatted;
+    document.getElementById('festivoDays').textContent = data.festivo_days || 0;
+    document.getElementById('vacacionesDays').textContent = data.vacaciones_days || 0;
+    document.getElementById('apDays').textContent = data.ap_days || 0;
+    document.getElementById('otroDays').textContent = data.otro_days || 0;
+
+    const container = document.getElementById('weeksContainer');
+    if (data.weeks.length === 0) {
+        container.innerHTML = '<p class="empty-msg">No hay datos este mes</p>';
+        return;
+    }
+
+    container.innerHTML = data.weeks.map(week => `
+        <div class="week-card">
+            <div class="week-header">
+                <h3>${week.week}</h3>
+                <span class="week-total">${fmtHours(week.total)}</span>
+            </div>
+            <div class="week-days">
+                ${week.days.map(day => `
+                    <div class="week-day">
+                        <span class="week-day-name">${day.weekday}</span>
+                        <span class="week-day-date">${day.date.split('-')[2]}</span>
+                        <span class="week-day-hours">${day.total > 0 ? fmtHours(day.total) : '-'}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    loadReports();
+}
+
+loadReports();
+</script>
+{% endblock %}

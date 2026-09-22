@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12,6 12,12 16,14"/>
+            </svg>
+        </div>
+        <h1>Control Horario</h1>
+        <p class="login-subtitle">Introduce tu PIN para acceder</p>
+        <form id="loginForm" autocomplete="off">
+            <div class="pin-input-group">
+                <input type="password" id="pinInput" class="pin-input" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="PIN" autofocus>
+            </div>
+            <div id="loginError" class="error-msg" style="display:none">PIN incorrecto</div>
+            <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pin = document.getElementById('pinInput').value;
+    const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pin})
+    });
+    if (res.ok) {
+        window.location.href = '/dashboard';
+    } else {
+        document.getElementById('loginError').style.display = 'block';
+        document.getElementById('pinInput').value = '';
+        document.getElementById('pinInput').focus();
+    }
+});
+</script>
+{% endblock %}

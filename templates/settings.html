@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar">
+    <div class="nav-brand">Control Horario</div>
+    <div class="nav-links">
+        <a href="/dashboard" class="nav-link">Inicio</a>
+        <a href="/calendar" class="nav-link">Calendario</a>
+        <a href="/history" class="nav-link">Historial</a>
+        <a href="/reports" class="nav-link">Informes</a>
+        <a href="/settings" class="nav-link active">Ajustes</a>
+    </div>
+    <button class="nav-toggle" onclick="toggleNav()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+</nav>
+
+<div class="container">
+    <h2>Ajustes</h2>
+
+    <div class="settings-section">
+        <h3>Ajustes semanales</h3>
+        <form id="settingsForm" class="settings-form">
+            <div class="form-group">
+                <label for="weeklyHours">Horas semanales</label>
+                <input type="number" id="weeklyHours" min="1" max="60" step="0.5" placeholder="35" required>
+            </div>
+
+            <div class="form-group">
+                <label>Dias de teletrabajo por defecto</label>
+                <div id="teleDaysGroup" class="tele-days-row"></div>
+                <p class="settings-desc">Los registros de estos dias se marcara como teletrabajo por defecto (siempre podras cambiarlo).</p>
+            </div>
+
+            <div class="form-group">
+                <label>Porcentaje semanal objetivo</label>
+                <div class="pct-row">
+                    <input type="range" id="teleworkPctInput" min="0" max="100" step="5" value="0">
+                    <div class="pct-values">
+                        <span class="pct-val presencial"><b id="pctPre">100%</b> Presencial</span>
+                        <span class="pct-val teletrabajo"><b id="pctTele">0%</b> Teletrabajo</span>
+                    </div>
+                </div>
+                <p class="settings-desc">Porcentaje a cumplir semanalmente de cada modalidad.</p>
+            </div>
+
+            <div id="settingsSuccess" class="success-msg" style="display:none">Guardado correctamente</div>
+            <button type="submit" class="btn btn-primary btn-full">Guardar</button>
+        </form>
+    </div>
+
+    <div class="settings-section">
+        <h3>Ajustes de horario</h3>
+        <form id="scheduleForm" class="settings-form">
+            <div class="shift-grid">
+                <div class="form-group">
+                    <label for="morningStart">Manana - inicio</label>
+                    <input type="time" id="morningStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="morningEnd">Manana - fin</label>
+                    <input type="time" id="morningEnd" required>
+                </div>
+                <div class="form-group">
+                    <label for="afternoonStart">Tarde - inicio</label>
+                    <input type="time" id="afternoonStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="afternoonEnd">Tarde - fin</label>
+                    <input type="time" id="afternoonEnd" required>
+                </div>
+                <div class="form-group">
+                    <label for="lunchStart">Interrupcion de comida - inicio</label>
+                    <input type="time" id="lunchStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="lunchEnd">Interrupcion de comida - fin</label>
+                    <input type="time" id="lunchEnd" required>
+                </div>
+            </div>
+            <p class="settings-desc">El horario de trabajo solo es valido entre el inicio de manana y el fin de tarde. La interrupcion de comida se descuenta del total diario siempre que la jornada llegue al fin del tramo: si entras durante la comida se restan los minutos que falten hasta el fin; si sales antes del fin, no se descuenta nada.</p>
+            <h4 class="shift-grid-title">Objetivo semanal de jornada de tarde segun dias trabajados</h4>
+            <div class="shift-grid">
+                <div class="form-group">
+                    <label for="objTarde5">5 dias trabajados</label>
+                    <input type="time" id="objTarde5" required>
+                </div>
+                <div class="form-group">
+                    <label for="objTarde4">4 dias trabajados</label>
+                    <input type="time" id="objTarde4" required>
+                </div>
+                <div class="form-group">
+                    <label for="objTarde3">3 dias trabajados</label>
+                    <input type="time" id="objTarde3" required>
+                </div>
+                <div class="form-group">
+                    <label for="objTarde2">2 dias trabajados</label>
+                    <input type="time" id="objTarde2" required>
+                </div>
+                <div class="form-group">
+                    <label for="objTarde1">1 dia trabajado</label>
+                    <input type="time" id="objTarde1" required>
+                </div>
+            </div>
+            <p class="settings-desc">El objetivo de jornada de tarde de la semana se calcula segun los dias trabajados con estas variables y se muestra en la pantalla principal junto a la razon.</p>
+            <div id="scheduleSuccess" class="success-msg" style="display:none">Horario guardado correctamente</div>
+            <button type="submit" class="btn btn-primary">Guardar horario</button>
+        </form>
+    </div>
+
+    <div class="settings-section">
+        <h3>Cambiar PIN</h3>
+        <form id="changePinForm" class="settings-form">
+            <div class="form-group">
+                <label for="newPin">Nuevo PIN</label>
+                <input type="password" id="newPin" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="Nuevo PIN" required>
+            </div>
+            <div class="form-group">
+                <label for="confirmPin">Confirmar PIN</label>
+                <input type="password" id="confirmPin" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="Repite el PIN" required>
+            </div>
+            <div id="pinError" class="error-msg" style="display:none">Los PINes no coinciden</div>
+            <div id="pinSuccess" class="success-msg" style="display:none">PIN actualizado correctamente</div>
+            <button type="submit" class="btn btn-primary">Cambiar PIN</button>
+        </form>
+    </div>
+
+    <div class="settings-section">
+        <h3>Base de Datos</h3>
+        <p class="settings-desc">Gestiona los datos de la aplicacion. Las copias de seguridad incluyen todo el contenido de la base de datos, incluyendo ajustes, registros y cualquier funcionalidad futura, por lo que sirven como respaldo completo del sistema.</p>
+        <div class="db-actions">
+            <button type="button" class="btn btn-danger" onclick="openDbClearModal()">Eliminar base de datos</button>
+            <button type="button" class="btn btn-primary" onclick="openDbBackupModal()">Guardar base de datos</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('restoreFile').click()">Restaurar base de datos</button>
+            <input type="file" id="restoreFile" accept=".db,.sqlite,.sqlite3,.gz,.sql" style="display:none" onchange="restoreDb(this)">
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Cerrar sesion</h3>
+        <a href="/api/logout" class="btn btn-danger">Cerrar sesion</a>
+    </div>
+</div>
+
+<div id="clearDbModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Eliminar base de datos</h3>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeDbModal('clearDbModal')">X</button>
+        </div>
+        <p class="settings-desc">Se eliminaran todos los registros de horas (presencial y teletrabajo) y las marcas de calendario (vacaciones, ausencia). Los festivos del calendario se conservan y nunca se borran desde esta opcion. Los ajustes (horario, objetivos, teletrabajo y PIN) no se modificaran. Esta accion no se puede deshacer.</p>
+        <label class="clear-check">
+            <input type="checkbox" id="clearConfirmCheck" onchange="updateClearBtn()">
+            Entiendo que se eliminaran todos los registros de horas y marcas y quiero continuar
+        </label>
+        <div id="clearMsg" class="success-msg" style="display:none"></div>
+        <div id="clearError" class="error-msg" style="display:none"></div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-danger" id="clearConfirmBtn" onclick="confirmClearDb()" disabled>Eliminar base de datos</button>
+            <div class="modal-actions-right">
+                <button type="button" class="btn btn-secondary" onclick="closeDbModal('clearDbModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="backupDbModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Guardar base de datos</h3>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeDbModal('backupDbModal')">X</button>
+        </div>
+        <p class="settings-desc">Se generara un archivo de resplado comprimido con todo el contenido de la base de datos.</p>
+        <div id="backupMsg" class="success-msg" style="display:none"></div>
+        <div id="backupError" class="error-msg" style="display:none"></div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-primary" onclick="downloadBackup('device')">Guardar en el equipo</button>
+            <div class="modal-actions-right">
+                <button type="button" class="btn btn-secondary" onclick="downloadBackup('email')">Enviar por email</button>
+                <button type="button" class="btn btn-secondary" onclick="closeDbModal('backupDbModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleNav() { document.querySelector('.nav-links').classList.toggle('show'); }
+
+const WEEK_DAYS = [
+    {value:0, name:'Lun', full:'Lunes'},
+    {value:1, name:'Mar', full:'Martes'},
+    {value:2, name:'Mie', full:'Miercoles'},
+    {value:3, name:'Jue', full:'Jueves'},
+    {value:4, name:'Vie', full:'Viernes'},
+];
+
+function renderDayChecks(days) {
+    const group = document.getElementById('teleDaysGroup');
+    group.innerHTML = WEEK_DAYS.map(d => {
+        const checked = days.includes(d.value);
+        return `<label class="day-check ${checked ? 'checked' : ''}">
+            <input type="checkbox" value="${d.value}" ${checked ? 'checked' : ''}
+                onchange="this.closest('label').classList.toggle('checked', this.checked); updateSelectedDays()">
+            ${d.name}
+        </label>`;
+    }).join('');
+}
+
+function updateSelectedDays() {
+    return Array.from(document.querySelectorAll('#teleDaysGroup input:checked')).map(i => parseInt(i.value));
+}
+
+function updatePctDisplay() {
+    const t = parseInt(document.getElementById('teleworkPctInput').value);
+    document.getElementById('pctTele').textContent = t + '%';
+    document.getElementById('pctPre').textContent = (100 - t) + '%';
+}
+
+document.getElementById('teleworkPctInput').addEventListener('input', updatePctDisplay);
+
+async function loadSettings() {
+    const res = await fetch('/api/settings');
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    const data = await res.json();
+    document.getElementById('weeklyHours').value = data.weekly_hours;
+    renderDayChecks(data.default_telework_days);
+    document.getElementById('teleworkPctInput').value = data.telework_pct;
+    updatePctDisplay();
+    const s = data.schedule || {};
+    document.getElementById('morningStart').value = s.morning_start || '07:00';
+    document.getElementById('morningEnd').value = s.morning_end || '14:30';
+    document.getElementById('afternoonStart').value = s.afternoon_start || '14:31';
+    document.getElementById('afternoonEnd').value = s.afternoon_end || '19:00';
+    document.getElementById('lunchStart').value = s.lunch_start || '16:00';
+    document.getElementById('lunchEnd').value = s.lunch_end || '16:30';
+    document.getElementById('objTarde5').value = s.obj_tarde_5d || '03:00';
+    document.getElementById('objTarde4').value = s.obj_tarde_4d || '02:30';
+    document.getElementById('objTarde3').value = s.obj_tarde_3d || '01:45';
+    document.getElementById('objTarde2').value = s.obj_tarde_2d || '01:00';
+    document.getElementById('objTarde1').value = s.obj_tarde_1d || '00:00';
+}
+
+document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    document.getElementById('settingsSuccess').style.display = 'none';
+    const days = Array.from(document.querySelectorAll('#teleDaysGroup input:checked')).map(i => parseInt(i.value));
+    const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            weekly_hours: parseFloat(document.getElementById('weeklyHours').value),
+            telework_pct: parseInt(document.getElementById('teleworkPctInput').value),
+            default_telework_days: days.join(',')
+        })
+    });
+    if (res.ok) {
+        document.getElementById('settingsSuccess').style.display = 'block';
+        setTimeout(() => document.getElementById('settingsSuccess').style.display = 'none', 3000);
+    }
+});
+
+document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    document.getElementById('scheduleSuccess').style.display = 'none';
+    const body = {
+        morning_start: document.getElementById('morningStart').value,
+        morning_end: document.getElementById('morningEnd').value,
+        afternoon_start: document.getElementById('afternoonStart').value,
+        afternoon_end: document.getElementById('afternoonEnd').value,
+        lunch_start: document.getElementById('lunchStart').value,
+        lunch_end: document.getElementById('lunchEnd').value,
+        obj_tarde_5d: document.getElementById('objTarde5').value,
+        obj_tarde_4d: document.getElementById('objTarde4').value,
+        obj_tarde_3d: document.getElementById('objTarde3').value,
+        obj_tarde_2d: document.getElementById('objTarde2').value,
+        obj_tarde_1d: document.getElementById('objTarde1').value,
+    };
+    const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    if (res.ok) {
+        document.getElementById('scheduleSuccess').style.display = 'block';
+        setTimeout(() => document.getElementById('scheduleSuccess').style.display = 'none', 3000);
+    } else {
+        const err = await res.json();
+        showToast(err.detail || 'Error al guardar el horario');
+    }
+});
+
+document.getElementById('changePinForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pin = document.getElementById('newPin').value;
+    const confirm = document.getElementById('confirmPin').value;
+    document.getElementById('pinError').style.display = 'none';
+    document.getElementById('pinSuccess').style.display = 'none';
+
+    if (pin !== confirm) {
+        document.getElementById('pinError').style.display = 'block';
+        return;
+    }
+
+    const res = await fetch('/api/change-pin', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pin})
+    });
+    if (res.ok) {
+        document.getElementById('pinSuccess').style.display = 'block';
+        document.getElementById('newPin').value = '';
+        document.getElementById('confirmPin').value = '';
+    }
+});
+
+let toastTimer = null;
+function showToast(msg, isError) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.toggle('toast-error', !!isError);
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function closeDbModal(id) {
+    document.getElementById(id).style.display = 'none';
+    if (id === 'clearDbModal') {
+        document.getElementById('clearConfirmCheck').checked = false;
+        document.getElementById('clearConfirmBtn').disabled = true;
+    }
+}
+
+function openDbClearModal() {
+    document.getElementById('clearMsg').style.display = 'none';
+    document.getElementById('clearError').style.display = 'none';
+    document.getElementById('clearDbModal').style.display = 'flex';
+}
+
+function updateClearBtn() {
+    document.getElementById('clearConfirmBtn').disabled = !document.getElementById('clearConfirmCheck').checked;
+}
+
+async function confirmClearDb() {
+    const btn = document.getElementById('clearConfirmBtn');
+    btn.disabled = true;
+    document.getElementById('clearError').style.display = 'none';
+    try {
+        const res = await fetch('/api/database/clear', {method: 'POST'});
+        if (res.ok) {
+            document.getElementById('clearMsg').textContent = 'Base de datos eliminada correctamente';
+            document.getElementById('clearMsg').style.display = 'block';
+            setTimeout(() => closeDbModal('clearDbModal'), 1500);
+        } else {
+            const err = await res.json();
+            throw new Error(err.detail || 'Error al eliminar la base de datos');
+        }
+    } catch (e) {
+        document.getElementById('clearError').textContent = e.message;
+        document.getElementById('clearError').style.display = 'block';
+        btn.disabled = false;
+    }
+}
+
+function openDbBackupModal() {
+    document.getElementById('backupMsg').style.display = 'none';
+    document.getElementById('backupError').style.display = 'none';
+    document.getElementById('backupDbModal').style.display = 'flex';
+}
+
+function downloadBackup(mode) {
+    closeDbModal('backupDbModal');
+    try {
+        window.location.href = '/api/database/backup';
+        if (mode === 'email') {
+            setTimeout(() => window.location.href =
+                'mailto:?subject=Copia de seguridad Control Horario&body=Adjunto la copia de seguridad de Control Horario (archivo .db.gz). Para restaurarla: Ajustes → Base de Datos → Restaurar base de datos.', 600);
+        }
+    } catch (e) {
+        showToast('No se pudo generar la copia', true);
+    }
+}
+
+async function restoreDb(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (!confirm('Se restaurara la base de datos con el contenido del archivo seleccionado. Los datos actuales se reemplazaran por completo. ¿Continuar?')) {
+        input.value = '';
+        return;
+    }
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+        const res = await fetch('/api/database/restore', {method: 'POST', body: fd});
+        if (res.ok) {
+            showToast('Base de datos restaurada correctamente');
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            const err = await res.json();
+            showToast(err.detail || 'Error al restaurar la base de datos', true);
+            input.value = '';
+        }
+    } catch (e) {
+        showToast('Error al restaurar la base de datos', true);
+        input.value = '';
+    }
+}
+
+loadSettings();
+</script>
+{% endblock %}
