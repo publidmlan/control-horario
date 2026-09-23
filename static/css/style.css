@@ -1189,9 +1189,9 @@ body {
     .nav-links.show { display: flex; }
     .nav-toggle { display: block; }
 
-    .form-row { flex-direction: column; }
+    .form-row { flex-direction: column; align-items: stretch; }
     .form-row .btn { width: 100%; justify-content: center; }
-    .manual-form .form-row { flex-direction: column; }
+    .manual-form .form-row { flex-direction: column; align-items: stretch; }
 
     .summary-cards { grid-template-columns: 1fr; }
     .summary-card-value { font-size: 20px; }

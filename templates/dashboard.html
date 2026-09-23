@@ -41,7 +41,7 @@
             <div id="remainingHours" class="summary-card-value remaining-value">0h 00min</div>
             <div class="summary-card-detail" id="targetInfo">de 35h semanales</div>
             <div class="afternoon-obj" id="weekAfternoonDiscount" style="display:none">
-                Jornada de tarde reducida: <b id="weekAfternoonDiscountVal">0h 00min</b>
+                Jornada reducida por dias no trabajados: <b id="weekAfternoonDiscountVal">0h 00min</b>
                 <span id="weekAfternoonDiscountReason" class="afternoon-obj-reason"></span>
             </div>
         </div>
@@ -357,8 +357,9 @@ async function loadSummary() {
         document.getElementById('remainingHours').textContent = data.remaining_formatted;
         document.getElementById('targetInfo').textContent = 'de ' + data.target_formatted + ' semanales';
         if (data.afternoon_reduction > 0) {
+            const nonWorked = data.non_worked_days || 0;
             document.getElementById('weekAfternoonDiscountVal').textContent = data.afternoon_reduction_formatted;
-            document.getElementById('weekAfternoonDiscountReason').textContent = '(' + data.days_worked + ' dia' + (data.days_worked !== 1 ? 's' : '') + ' trabajado' + (data.days_worked !== 1 ? 's' : '') + ')';
+            document.getElementById('weekAfternoonDiscountReason').textContent = '(' + nonWorked + ' dia' + (nonWorked !== 1 ? 's' : '') + ' no trabajado' + (nonWorked !== 1 ? 's' : '') + ')';
             document.getElementById('weekAfternoonDiscount').style.display = 'block';
         } else {
             document.getElementById('weekAfternoonDiscount').style.display = 'none';
@@ -370,14 +371,11 @@ async function loadSummary() {
         } else {
             document.getElementById('weekBreakdownWrap').style.display = 'none';
         }
-        if (data.days_worked >= 1) {
-            const reason = '(' + data.days_worked + ' dia' + (data.days_worked !== 1 ? 's' : '') + ' trabajado' + (data.days_worked !== 1 ? 's' : '') + ')';
-            document.getElementById('weekAfternoonObjVal').textContent = data.afternoon_objective_formatted;
-            document.getElementById('weekAfternoonObjReason').textContent = reason;
-            document.getElementById('weekAfternoonObj').style.display = 'block';
-        } else {
-            document.getElementById('weekAfternoonObj').style.display = 'none';
-        }
+        const available = data.afternoon_available_days || 0;
+        const reason = '(' + available + ' dia' + (available !== 1 ? 's' : '') + ' laborable' + (available !== 1 ? 's' : '') + ')';
+        document.getElementById('weekAfternoonObjVal').textContent = data.afternoon_objective_formatted;
+        document.getElementById('weekAfternoonObjReason').textContent = reason;
+        document.getElementById('weekAfternoonObj').style.display = 'block';
     } catch(e) {}
 }
 
@@ -540,8 +538,7 @@ function changeWeek(delta) {
 
 function onMonthChange() {
     const val = document.getElementById('monthSelect').value;
-    const firstDay = val + '-01';
-    viewWeekStart = getMonday(firstDay);
+    viewWeekStart = getMonday(val + '-15');
     loadSummary();
     loadToday();
     loadWeekDetail();

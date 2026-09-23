@@ -438,6 +438,7 @@ def week_summary(request: Request, week_start: Optional[str] = None, db: Session
     total_presencial = 0
     total_teletrabajo = 0
     total_lunch = 0
+    worked_days = 0
     special_days = 0
     day_names = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
 
@@ -467,6 +468,8 @@ def week_summary(request: Request, week_start: Optional[str] = None, db: Session
                 special = e.entry_type
         if any(e.entry_type in NON_WORK_TYPES for e in day_entries):
             special_days += 1
+        if any(e.entry_type not in NON_WORK_TYPES for e in day_entries):
+            worked_days += 1
         day_net = day_morning + day_afternoon
         total_morning += day_morning
         total_afternoon += day_afternoon
@@ -485,13 +488,14 @@ def week_summary(request: Request, week_start: Optional[str] = None, db: Session
             "special": special,
         })
 
-    worked_days = max(0, 5 - special_days)
+    non_worked_days = special_days
     target = float(get_setting(db, "weekly_hours", "35"))
-    target_afternoon_full = afternoon_objective_hours(5, sch)
-    target_afternoon_week = afternoon_objective_hours(worked_days, sch)
-    afternoon_discount = round(max(0.0, target_afternoon_full - target_afternoon_week), 2)
-    adjusted_target = max(0.0, round(target - afternoon_discount, 2))
+    daily_objective = target / 5.0
+    day_discount = round(non_worked_days * daily_objective, 2)
+    adjusted_target = max(0.0, round(target - day_discount, 2))
     remaining = max(0.0, round(adjusted_target - total_week, 2))
+    afternoon_available_days = max(0, 5 - special_days)
+    target_afternoon_week = afternoon_objective_hours(afternoon_available_days, sch)
     presencial_pct = round(total_presencial / total_week * 100) if total_week > 0 else 0
     teletrabajo_pct = round(total_teletrabajo / total_week * 100) if total_week > 0 else 0
     pct_target_telework = int(round(get_telework_pct(db)))
@@ -525,13 +529,15 @@ def week_summary(request: Request, week_start: Optional[str] = None, db: Session
         "target": adjusted_target,
         "target_formatted": fmt_hours(adjusted_target),
         "target_base": round(target, 2),
-        "afternoon_reduction": afternoon_discount,
-        "afternoon_reduction_formatted": fmt_hours(afternoon_discount),
+        "afternoon_reduction": day_discount,
+        "afternoon_reduction_formatted": fmt_hours(day_discount),
         "afternoon_target": round(target_afternoon_week, 2),
         "afternoon_target_formatted": fmt_hours(target_afternoon_week),
         "remaining": remaining,
         "remaining_formatted": fmt_hours(remaining),
         "days_worked": worked_days,
+        "non_worked_days": non_worked_days,
+        "afternoon_available_days": afternoon_available_days,
         "afternoon_objective_hours": round(target_afternoon_week, 2),
         "afternoon_objective_formatted": fmt_hours(target_afternoon_week),
     }
