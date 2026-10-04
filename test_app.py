@@ -151,6 +151,20 @@ def test_register_duplicate_username_rejected():
     assert client.post("/api/register", json={"code": inv["code"], "username": "admin", "pin": "1234"}).status_code == 400
 
 
+def test_borrar_usuario_borra_su_invitacion():
+    inv_borrable = client.post("/api/invites", headers=auth_headers()).json()
+    client.post("/api/register", json={"code": inv_borrable["code"], "username": "borrable", "pin": "4444"})
+    _create_user("superviviente", via_invite=True)
+    baja = next(u for u in client.get("/api/users", headers=auth_headers()).json()["users"]
+                if u["username"] == "borrable")
+    r = client.delete(f"/api/users/{baja['id']}", headers=auth_headers())
+    assert r.status_code == 200
+    codigos = [i["code"] for i in client.get("/api/invites", headers=auth_headers()).json()["invites"]]
+    assert inv_borrable["code"] not in codigos
+    assert len(codigos) == 1
+    assert client.post("/api/login", json={"username": "borrable", "pin": "4444"}).status_code == 401
+
+
 def test_migracion_columna_es_idempotente_y_no_rompe():
     with app_main.engine.connect() as conn:
         conn.execute(text("CREATE TABLE IF NOT EXISTS tabla_prueba (id INTEGER PRIMARY KEY)"))

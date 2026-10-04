@@ -294,10 +294,10 @@ async function resetUserPin(id, username) {
 }
 
 async function deleteUser(id, username) {
-    if (!confirm(`¿Borrar la cuenta de ${username}? Se eliminaran sus registros y ajustes.`)) return;
+    if (!confirm(`¿Borrar la cuenta de ${username}? Se eliminaran sus registros, sus ajustes y la invitacion que uso.`)) return;
     const res = await fetch(`/api/users/${id}`, {method: 'DELETE'});
     const err = await res.json().catch(() => ({}));
-    if (res.ok) { showToast('Cuenta borrada'); loadUsers(); }
+    if (res.ok) { showToast('Cuenta borrada'); loadUsers(); loadInvites(); }
     else showToast(err.detail || 'Error', true);
 }
 

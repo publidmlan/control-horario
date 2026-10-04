@@ -1429,6 +1429,7 @@ def delete_user(user_id: int, request: Request, db: Session = Depends(get_db)):
     db.query(UserSetting).filter(UserSetting.user_id == target.id).delete(synchronize_session=False)
     db.query(AuthSession).filter(AuthSession.user_id == target.id).delete(synchronize_session=False)
     db.query(Invite).filter(Invite.created_by == target.id).delete(synchronize_session=False)
+    db.query(Invite).filter(Invite.used_by == target.username).delete(synchronize_session=False)
     db.delete(target)
     db.commit()
     return {"ok": True}
