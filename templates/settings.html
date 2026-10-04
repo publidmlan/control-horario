@@ -162,7 +162,10 @@
                     <button type="button" class="btn btn-secondary btn-sm" onclick="copyInvite()">Copiar</button>
                 </div>
             </div>
-            <div id="inviteList" class="invite-list"></div>
+            <div class="invite-list-head">
+                <button type="button" class="link-toggle" id="inviteToggle" onclick="toggleInviteList()">Mostrar invitaciones</button>
+            </div>
+            <div id="inviteList" class="invite-list" style="display:none"></div>
         </div>
 
         <div class="settings-subsection">
@@ -313,17 +316,34 @@ function copyInvite() {
     navigator.clipboard.writeText(INVITE_URL).then(() => showToast('Enlace copiado')).catch(() => showToast('No se pudo copiar', true));
 }
 
+function esc(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toggleInviteList() {
+    const list = document.getElementById('inviteList');
+    const btn = document.getElementById('inviteToggle');
+    const show = list.style.display === 'none';
+    list.style.display = show ? 'block' : 'none';
+    btn.textContent = show ? 'Ocultar invitaciones' : 'Mostrar invitaciones';
+}
+
 async function loadInvites() {
     const res = await fetch('/api/invites');
     if (!res.ok) return;
     const data = await res.json();
     document.getElementById('inviteList').innerHTML = data.invites.length
-        ? `<ul>${data.invites.map(i =>
-            `<li><b>${i.code}</b> ${
-                i.used ? '<span class="used-tag">usada</span>'
-                      : `<button class="btn btn-danger btn-sm" onclick="deleteInvite('${i.code}')">Borrar</button>`}</li>`
-        ).join('')}</ul>`
-        : '<p class="settings-desc">No hay invitaciones pendientes.</p>';
+        ? `<table class="invite-table">
+            <thead><tr><th>Codigo invitacion</th><th>Quien lo ha usado</th><th>usado (S/N)</th><th></th></tr></thead>
+            <tbody>${data.invites.map(i => i.used
+                ? `<tr><td><b>${esc(i.code)}</b></td><td>${esc(i.used_by || '-')}</td><td></td><td></td></tr>`
+                : `<tr><td><b>${esc(i.code)}</b></td><td>-</td><td>N</td>` +
+                  `<td><button class="btn btn-danger btn-sm" onclick="deleteInvite('${esc(i.code)}')">Borrar</button></td></tr>`
+            ).join('')}</tbody>
+        </table>`
+        : '<p class="settings-desc">No hay invitaciones.</p>';
 }
 
 async function deleteInvite(code) {

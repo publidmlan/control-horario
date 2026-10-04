@@ -1329,21 +1329,40 @@ body {
     word-break: break-all;
 }
 
-.invite-list ul { list-style: none; margin: 8px 0 0; padding: 0; }
-.invite-list li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 8px 4px;
-    border-bottom: 1px solid var(--border);
+.invite-list-head { margin-top: 10px; }
+.link-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--primary);
+    text-decoration: underline;
+}
+.link-toggle:hover { color: var(--primary-dark, var(--primary)); }
+
+.invite-table {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
     font-size: 14px;
 }
-.used-tag {
-    color: var(--text-light);
+.invite-table th {
+    text-align: left;
     font-size: 12px;
-    font-style: italic;
+    color: var(--text-light);
+    font-weight: 600;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
 }
+.invite-table td {
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+.invite-table td b { letter-spacing: 1px; }
+.invite-table td:last-child { text-align: right; }
 
 .users-list {
     margin-top: 8px;

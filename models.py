@@ -27,6 +27,7 @@ class Invite(Base):
     code = Column(String(16), primary_key=True)
     created_by = Column(Integer, index=True, nullable=False)
     used = Column(Boolean, default=False, nullable=False)
+    used_by = Column(String(80), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 

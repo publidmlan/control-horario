@@ -77,6 +77,7 @@ def init_db():
     _add_column_if_missing("entries", "entry_type VARCHAR(20)")
     _add_column_if_missing("users", "username VARCHAR(80)")
     _add_column_if_missing("users", "is_owner BOOLEAN DEFAULT 0")
+    _add_column_if_missing("invites", "used_by VARCHAR(80)")
     db = next(get_db())
     db.execute(text("UPDATE entries SET entry_type = 'presencial' WHERE entry_type IS NULL"))
     db.commit()
@@ -510,6 +511,7 @@ def register(req: RegisterRequest, response: Response, db: Session = Depends(get
     db.add(user)
     db.flush()
     invite.used = True
+    invite.used_by = username
     db.commit()
     token = secrets.token_hex(16)
     db.add(AuthSession(token=token, user_id=user.id))
@@ -1433,7 +1435,8 @@ def list_invites(request: Request, db: Session = Depends(get_db)):
     _require_owner(user)
     invites = db.query(Invite).order_by(Invite.created_at).all()
     return {"invites": [
-        {"code": i.code, "used": bool(i.used), "created_at": i.created_at.isoformat() if i.created_at else None}
+        {"code": i.code, "used": bool(i.used), "used_by": i.used_by,
+         "created_at": i.created_at.isoformat() if i.created_at else None}
         for i in invites
     ]}
 

@@ -136,6 +136,7 @@ def test_register_with_valid_invite():
     body = client.get("/api/invites", headers=auth_headers()).json()["invites"]
     used = next(i for i in body if i["code"] == inv["code"])
     assert used["used"] is True
+    assert used["used_by"] == "luis"
 
 
 def test_register_requires_valid_or_unused_code():
@@ -148,6 +149,31 @@ def test_register_requires_valid_or_unused_code():
 def test_register_duplicate_username_rejected():
     inv = client.post("/api/invites", headers=auth_headers()).json()
     assert client.post("/api/register", json={"code": inv["code"], "username": "admin", "pin": "1234"}).status_code == 400
+
+
+def test_invites_list_includes_used_by():
+    inv = client.post("/api/invites", headers=auth_headers()).json()
+    pendientes = client.get("/api/invites", headers=auth_headers()).json()["invites"]
+    libre = next(i for i in pendientes if i["code"] == inv["code"])
+    assert libre["used"] is False
+    assert libre["used_by"] is None
+    reg = client.post("/api/register", json={"code": inv["code"], "username": "nuevo_inv", "pin": "3333"})
+    assert reg.status_code == 200, reg.text
+    body = client.get("/api/invites", headers=auth_headers()).json()["invites"]
+    usada = next(i for i in body if i["code"] == inv["code"])
+    assert usada["used"] is True
+    assert usada["used_by"] == "nuevo_inv"
+
+
+def test_settings_lista_invitaciones_oculta_por_defecto():
+    r = client.get("/settings", headers=auth_headers())
+    assert '<button type="button" class="link-toggle" id="inviteToggle"' in r.text
+    assert ">Mostrar invitaciones</button>" in r.text
+    assert '<div id="inviteList" class="invite-list" style="display:none"></div>' in r.text
+    assert "function toggleInviteList()" in r.text
+    assert "'Ocultar invitaciones'" in r.text
+    assert "<th>Codigo invitacion</th><th>Quien lo ha usado</th><th>usado (S/N)</th>" in r.text
+    assert "used-tag" not in r.text
 
 
 def test_invite_endpoints_owner_only():
