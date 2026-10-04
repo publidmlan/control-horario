@@ -936,6 +936,65 @@ def test_restore_json_invalid_format():
     assert r.status_code == 400
 
 
+class _ConnStub:
+    def __init__(self):
+        self.calls = []
+
+    def execute(self, stmt, params=None):
+        self.calls.append((str(stmt), params or {}))
+        return None
+
+
+def test_set_sequence_after_restore_con_tabla_con_filas():
+    conn = _ConnStub()
+    app_main._set_sequence_after_restore(conn, "public.entries_id_seq", 42)
+    sql, params = conn.calls[-1]
+    assert "setval" in sql
+    assert params == {"s": "public.entries_id_seq", "v": 42}
+
+
+def test_set_sequence_after_restore_con_tabla_vacia_no_falla():
+    conn = _ConnStub()
+    app_main._set_sequence_after_restore(conn, "public.user_settings_id_seq", 0)
+    sql, params = conn.calls[-1]
+    assert "setval" in sql
+    assert params == {"s": "public.user_settings_id_seq"}
+    assert 0 not in params.values()
+
+
+def test_set_sequence_after_restore_no_pasa_valor_cero():
+    for vacio in (0, None, 0.0):
+        conn = _ConnStub()
+        app_main._set_sequence_after_restore(conn, "seq", vacio)
+        _, params = conn.calls[-1]
+        assert all(v != 0 for v in params.values())
+
+
+def test_restore_json_no_aborta_si_una_secuencia_falla():
+    original = app_main._set_sequence_after_restore
+
+    def _boom(conn, seq, maxv):
+        raise ValueError("setval: value 0 is out of bounds")
+
+    app_main._set_sequence_after_restore = _boom
+    try:
+        _make("2027-06-08", "07:00:00", "19:00:00", "presencial")
+        bk = app_main._backup_json()
+        _make("2027-06-09", "08:00:00", "14:00:00")
+        r = client.post(
+            "/api/database/restore",
+            files={"file": ("backup.horarios", bk.body, "application/octet-stream")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+        dates = [e["date"] for e in client.get("/api/entries?month=6&year=2027", headers=auth_headers()).json()["entries"]]
+        assert "2027-06-08" in dates
+        assert "2027-06-09" not in dates
+    finally:
+        app_main._set_sequence_after_restore = original
+
+
 def test_quick_backup_creates_and_lists():
     _make("2027-06-08", "07:00:00", "19:00:00", "presencial")
     r = client.post("/api/database/backups/quick", headers=auth_headers())

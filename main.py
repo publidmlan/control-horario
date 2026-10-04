@@ -1088,6 +1088,13 @@ def _topo_table_order(tables):
     return ordered
 
 
+def _set_sequence_after_restore(conn, seq: str, maxv):
+    if maxv and int(maxv) > 0:
+        conn.execute(text("SELECT setval(:s, :v, true)"), {"s": seq, "v": int(maxv)})
+    else:
+        conn.execute(text("SELECT setval(:s, 1, false)"), {"s": seq})
+
+
 def _restore_json(raw: bytes):
     try:
         snapshot = json.loads(raw.decode("utf-8"))
@@ -1128,7 +1135,10 @@ def _restore_json(raw: bytes):
                             ).scalar()
                             if seq:
                                 maxv = conn.execute(text(f'SELECT COALESCE(MAX("{c.name}"), 0) FROM "{tname}"')).scalar()
-                                conn.execute(text("SELECT setval(:s, :v, true)"), {"s": seq, "v": maxv})
+                                try:
+                                    _set_sequence_after_restore(conn, seq, maxv)
+                                except Exception as se:
+                                    print(f"No se pudo ajustar la secuencia {seq}: {se}")
     except HTTPException:
         raise
     except Exception as e:
