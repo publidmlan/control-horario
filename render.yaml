@@ -1,0 +1,23 @@
+databases:
+  - name: control-horario-db
+    databaseName: control_horario
+    user: control_horario
+    plan: free
+
+services:
+  - type: web
+    name: control-horario
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: APP_PIN
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: control-horario-db
+          property: connectionString

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control Horario</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260911r">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Control de horario AGE">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    {% block content %}{% endblock %}
+    <script src="/static/js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var navbar = document.querySelector('.navbar');
+            if (!navbar) return;
+            fetch('/api/me').then(function (r) {
+                if (r.status === 401) return null;
+                return r.json();
+            }).then(function (me) {
+                if (!me) return;
+                var current = window.location.pathname;
+                var sections = [
+                    ['/dashboard', 'Inicio'],
+                    ['/calendar', 'Calendario'],
+                    ['/history', 'Historial'],
+                    ['/reports', 'Informes'],
+                    ['/settings', 'Ajustes']
+                ];
+                var html = '<span class="nav-user-name">' + me.username + '</span><div class="nav-user-menu">';
+                sections.forEach(function (item) {
+                    var cls = 'menu-link' + (current === item[0] ? ' active' : '');
+                    html += '<a href="' + item[0] + '" class="' + cls + '">' + item[1] + '</a>';
+                });
+                html += '<a href="/api/logout" class="menu-logout">Cerrar sesion</a></div>';
+                var chip = document.createElement('div');
+                chip.className = 'nav-user';
+                chip.innerHTML = html;
+                chip.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    chip.classList.toggle('open');
+                });
+                document.addEventListener('click', function () { chip.classList.remove('open'); });
+                navbar.appendChild(chip);
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="8.5" cy="7" r="4"/>
+                <line x1="20" y1="8" x2="20" y2="14"/>
+                <line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+        </div>
+        <h1>Crear cuenta</h1>
+        <p class="login-subtitle">Usa el codigo de invitacion que te ha enviado el administrador</p>
+        <form id="registerForm" autocomplete="off">
+            <div class="pin-input-group">
+                <input type="text" id="codeInput" class="pin-input" placeholder="Codigo de invitacion" value="{{ code }}" required autofocus>
+            </div>
+            <div class="pin-input-group">
+                <input type="text" id="userInput" class="pin-input" placeholder="Nombre" autocomplete="off" required>
+            </div>
+            <div class="pin-input-group">
+                <input type="password" id="pinInput" class="pin-input" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="PIN (minimo 4 digitos)" autocomplete="off" required>
+            </div>
+            <div id="registerError" class="error-msg" style="display:none"></div>
+            <button type="submit" class="btn btn-primary btn-full">Crear cuenta</button>
+            <p class="login-subtitle"><a href="/login">Ya tengo cuenta, quiero entrar</a></p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = document.getElementById('registerError');
+    err.style.display = 'none';
+    const code = document.getElementById('codeInput').value.trim();
+    const username = document.getElementById('userInput').value.trim();
+    const pin = document.getElementById('pinInput').value;
+    const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code, username, pin})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+        window.location.href = '/dashboard';
+    } else {
+        err.textContent = data.detail || 'No se pudo crear la cuenta';
+        err.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}
