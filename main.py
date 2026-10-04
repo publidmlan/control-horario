@@ -886,14 +886,24 @@ def _sqlite_path() -> str:
     return p
 
 
+
+
 @app.post("/api/database/clear")
 def clear_database(request: Request, db: Session = Depends(get_db)):
     user = check_auth(request, db)
     if not user.is_owner:
         raise HTTPException(status_code=403, detail="Solo el administrador puede eliminar la base de datos")
-    deleted = db.query(Entry).filter(Entry.entry_type != "festivo").delete(synchronize_session=False)
+    borrados = db.query(Entry).filter(Entry.entry_type != "festivo").delete(synchronize_session=False)
+    invitaciones = db.query(Invite).delete(synchronize_session=False)
+    db.query(UserSetting).delete(synchronize_session=False)
+    usuarios = db.query(User).filter(User.id != user.id).delete(synchronize_session=False)
+    db.query(AuthSession).filter(AuthSession.user_id != user.id).delete(synchronize_session=False)
+    user.username = "admin"
+    user.is_owner = True
+    user.pin_hash = bcrypt.hashpw(PIN_DEFAULT.encode(), bcrypt.gensalt()).decode()
     db.commit()
-    return {"ok": True, "deleted": deleted, "festivos_preservados": True}
+    return {"ok": True, "deleted": borrados, "festivos_preservados": True,
+            "usuarios_eliminados": usuarios, "invitaciones_eliminadas": invitaciones}
 
 
 @app.get("/api/database/backup")

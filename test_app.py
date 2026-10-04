@@ -809,26 +809,45 @@ def test_backup_generates_gzip_sqlite():
     assert raw[:16] == b"SQLite format 3\x00"
 
 
-def test_database_clear_keeps_settings_and_festivos():
-    r = client.post("/api/settings", json={
-        "weekly_hours": 40, "telework_pct": 0, "default_telework_days": "",
-    }, headers=auth_headers())
-    assert r.status_code == 200
+def test_database_clear_deja_estado_inicial_conservando_festivos_y_ajustes():
     _make("2027-06-08", "07:00:00", "19:00:00", "presencial")
     _make("2027-06-09", "07:00:00", "15:00:00", "teletrabajo")
     _make("2027-06-10", "07:00:00", "15:00:00", "vacaciones")
     _make("2027-06-11", "07:00:00", "15:00:00", "festivo")
+    client.post("/api/settings", json={
+        "weekly_hours": 40, "telework_pct": 20, "default_telework_days": "0,2",
+        "morning_start": "08:00", "afternoon_end": "18:00",
+    }, headers=auth_headers())
+    _create_user("pepe_para_borrar", via_invite=True)
+    client.post("/api/invites", headers=auth_headers())
+    client.post("/api/change-pin", json={"new_pin": "9999"},
+                headers=auth_headers("pepe_para_borrar", "2222"))
+
     r = client.post("/api/database/clear", headers=auth_headers())
     assert r.status_code == 200
-    assert r.json()["ok"] is True
-    assert r.json()["festivos_preservados"] is True
-    assert client.get("/api/settings", headers=auth_headers()).json()["weekly_hours"] == 40.0
+    body = r.json()
+    assert body["ok"] is True
+    assert body["festivos_preservados"] is True
+    assert body["deleted"] >= 3
+    assert body["usuarios_eliminados"] >= 1
+    assert body["invitaciones_eliminadas"] >= 2
+
     entries = client.get("/api/entries?month=6&year=2027", headers=auth_headers()).json()["entries"]
-    remaining = [(e["date"], e["entry_type"]) for e in entries]
-    assert ("2027-06-08", "presencial") not in remaining
-    assert ("2027-06-09", "teletrabajo") not in remaining
-    assert ("2027-06-10", "vacaciones") not in remaining
-    assert ("2027-06-11", "festivo") in remaining
+    assert [(e["date"], e["entry_type"]) for e in entries] == [("2027-06-11", "festivo")]
+    assert client.get("/api/invites", headers=auth_headers()).json()["invites"] == []
+    usuarios = client.get("/api/users", headers=auth_headers()).json()["users"]
+    assert len(usuarios) == 1
+    assert usuarios[0]["username"] == "admin"
+    assert usuarios[0]["is_owner"] is True
+    assert client.post("/api/login", json={"username": "admin", "pin": "1234"}).status_code == 200
+    assert client.post("/api/login", json={"username": "admin", "pin": "9999"}).status_code == 401
+    assert client.post("/api/login", json={"username": "pepe_para_borrar", "pin": "2222"}).status_code == 401
+    ajustes = client.get("/api/settings", headers=auth_headers()).json()
+    assert ajustes["weekly_hours"] == 40.0
+    assert ajustes["telework_pct"] == 20.0
+    assert ajustes["default_telework_days"] == [0, 2]
+    assert ajustes["schedule"]["morning_start"] == "08:00"
+    assert ajustes["schedule"]["afternoon_end"] == "18:00"
 
 
 def test_database_restore_roundtrip():

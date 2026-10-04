@@ -186,10 +186,10 @@
             <h3>Eliminar base de datos</h3>
             <button type="button" class="btn btn-secondary btn-sm" onclick="closeDbModal('clearDbModal')">X</button>
         </div>
-        <p class="settings-desc">Se eliminaran todos los registros de horas (presencial y teletrabajo) y las marcas de calendario (vacaciones, ausencia). Los festivos del calendario se conservan y nunca se borran desde esta opcion. Los ajustes (horario, objetivos, teletrabajo y PIN) no se modificaran. Esta accion no se puede deshacer.</p>
+        <p class="settings-desc">Se eliminaran todos los registros de horas (presencial y teletrabajo) y las marcas de calendario (vacaciones, asuntos propios), todas las invitaciones y todas las cuentas de usuario salvo la tuya, que vuelve a quedar como <b>admin</b> con PIN <b>1234</b>. <b>Los festivos del calendario se conservan siempre</b> y <b>los ajustes (horario, objetivos y teletrabajo) se mantienen tal como estan ahora</b>. Esta accion no se puede deshacer.</p>
         <label class="clear-check">
             <input type="checkbox" id="clearConfirmCheck" onchange="updateClearBtn()">
-            Entiendo que se eliminaran todos los registros de horas y marcas y quiero continuar
+            Entiendo que se eliminaran los registros, las invitaciones y los usuarios (menos admin), y quiero continuar
         </label>
         <div id="clearMsg" class="success-msg" style="display:none"></div>
         <div id="clearError" class="error-msg" style="display:none"></div>
@@ -581,9 +581,9 @@ async function confirmClearDb() {
     try {
         const res = await fetch('/api/database/clear', {method: 'POST'});
         if (res.ok) {
-            document.getElementById('clearMsg').textContent = 'Base de datos eliminada correctamente';
+            document.getElementById('clearMsg').textContent = 'Base de datos eliminada. Festivos y ajustes conservados; tu cuenta vuelve a ser admin / 1234';
             document.getElementById('clearMsg').style.display = 'block';
-            setTimeout(() => closeDbModal('clearDbModal'), 1500);
+            setTimeout(() => location.reload(), 2000);
         } else {
             const err = await res.json();
             throw new Error(err.detail || 'Error al eliminar la base de datos');

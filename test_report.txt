@@ -76,7 +76,7 @@ test_app.py::test_csv_export PASSED                                      [ 81%]
 test_app.py::test_update_out_of_window_rejected PASSED                   [ 83%]
 test_app.py::test_backup_requires_auth PASSED                            [ 84%]
 test_app.py::test_backup_generates_gzip_sqlite PASSED                    [ 85%]
-test_app.py::test_database_clear_keeps_settings_and_festivos PASSED      [ 86%]
+test_app.py::test_database_clear_deja_estado_inicial_conservando_festivos_y_ajustes PASSED [ 86%]
 test_app.py::test_database_restore_roundtrip PASSED                      [ 87%]
 test_app.py::test_database_restore_invalid_file PASSED                   [ 89%]
 test_app.py::test_database_restore_requires_auth PASSED                  [ 90%]
@@ -118,4 +118,4 @@ test_app.py: 18 warnings
     warnings.warn(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 83 passed, 21 warnings in 59.85s =======================
+================== 83 passed, 21 warnings in 61.74s (0:01:01) ==================

@@ -69,7 +69,7 @@ Con el servidor en marcha, el movil (conectado al mismo WiFi) puede usarla:
 ## Datos y copias de seguridad
 
 - Todos los datos se guardan en el archivo **`horarios.db`** (junto a la aplicacion), sin depender de internet.
-- En **Ajustes -> Base de Datos** puedes **Guardar** una copia de seguridad (archivo `.db.gz`), **Restaurarla** sobre la app o **Eliminar** los registros conservando los festivos y ajustes.
+- En **Ajustes -> Base de Datos** puedes **Guardar** una copia de seguridad (archivo `.db.gz`), **Restaurarla** sobre la app o **Eliminar base de datos**, que borra los registros, las invitaciones y los usuarios (menos `admin`, que vuelve con PIN **1234**); **los festivos del calendario se conservan siempre** y **los ajustes se mantienen tal como estaban**.
 - Tambien puedes usar **Hacer backup rapido**: guarda una copia completa dentro de la aplicacion y te muestra una **lista de backups** con botones para **Restaurar**, **Descargar** o **Borrar** cada uno (muy util para probar cambios y volver atras).
 - Al actualizar la aplicacion por una version nueva, tus datos se conservan (se usan el mismo `horarios.db` y los mismos ajustes).
 
