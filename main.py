@@ -62,13 +62,18 @@ SCHEDULE_DEFAULTS = {
 }
 
 
-def _add_column_if_missing(table_name: str, column_def: str):
-    inspector = inspect(engine)
-    cols = [c["name"] for c in inspector.get_columns(table_name)]
-    if column_def.split(" ", 1)[0] not in cols:
-        with engine.connect() as conn:
-            conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_def}'))
-            conn.commit()
+def _add_column_if_missing(table_name: str, column_def: str) -> bool:
+    try:
+        inspector = inspect(engine)
+        cols = [c["name"] for c in inspector.get_columns(table_name)]
+        if column_def.split(" ", 1)[0] not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_def}'))
+                conn.commit()
+            return True
+    except Exception as exc:
+        print(f"[init_db] No se pudo anadir '{column_def}' a '{table_name}': {exc}")
+    return False
 
 
 def init_db():
@@ -76,7 +81,7 @@ def init_db():
     _add_column_if_missing("entries", "user_id INTEGER")
     _add_column_if_missing("entries", "entry_type VARCHAR(20)")
     _add_column_if_missing("users", "username VARCHAR(80)")
-    _add_column_if_missing("users", "is_owner BOOLEAN DEFAULT 0")
+    _add_column_if_missing("users", "is_owner BOOLEAN DEFAULT FALSE")
     _add_column_if_missing("invites", "used_by VARCHAR(80)")
     db = next(get_db())
     db.execute(text("UPDATE entries SET entry_type = 'presencial' WHERE entry_type IS NULL"))

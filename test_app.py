@@ -151,6 +151,20 @@ def test_register_duplicate_username_rejected():
     assert client.post("/api/register", json={"code": inv["code"], "username": "admin", "pin": "1234"}).status_code == 400
 
 
+def test_migracion_columna_es_idempotente_y_no_rompe():
+    with app_main.engine.connect() as conn:
+        conn.execute(text("CREATE TABLE IF NOT EXISTS tabla_prueba (id INTEGER PRIMARY KEY)"))
+        conn.commit()
+    assert app_main._add_column_if_missing("tabla_prueba", "extra VARCHAR(10)") is True
+    assert app_main._add_column_if_missing("tabla_prueba", "extra VARCHAR(10)") is False
+    assert app_main._add_column_if_missing("tabla_que_no_existe", "extra VARCHAR(10)") is False
+    app_main.init_db()
+    app_main.init_db()
+    with app_main.engine.connect() as conn:
+        conn.execute(text("DROP TABLE tabla_prueba"))
+        conn.commit()
+
+
 def test_invites_list_includes_used_by():
     inv = client.post("/api/invites", headers=auth_headers()).json()
     pendientes = client.get("/api/invites", headers=auth_headers()).json()["invites"]
