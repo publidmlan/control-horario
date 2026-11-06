@@ -298,6 +298,25 @@ def test_pwa_name_is_control_de_horario_age():
     assert data["short_name"] == app_main.APP_NAME
 
 
+def test_calendario_clic_en_dia_abre_editor_o_alta():
+    html = client.get("/calendar", headers=auth_headers()).text
+    for needle in [
+        'onclick="showDay(',
+        "function renderDayDetail",
+        "function openNewEntry",
+        "function setModalMode",
+        'id="modalTitle"',
+        'id="deleteBtn"',
+        'id="saveBtn"',
+        "/api/entries/manual",
+        "scrollIntoView",
+    ]:
+        assert needle in html
+    assert "if (dayEntries.length === 0)" in html
+    assert "openNewEntry(dateStr)" in html
+    assert "editEntry(e.id, e.date, e.time_in" in html
+
+
 # ------------------------------------------------------------------
 # Settings
 # ------------------------------------------------------------------
@@ -387,6 +406,16 @@ def test_create_special_day_mark():
         "date": "2027-06-07", "entry_type": "festivo",
     }, headers=auth_headers())
     assert r.status_code == 200
+
+
+def test_create_manual_entry_guarda_notas():
+    r = client.post("/api/entries/manual", json={
+        "date": "2027-06-07", "time_in": "07:00:00", "time_out": "15:00:00",
+        "entry_type": "presencial", "notes": "Revision de incidencias",
+    }, headers=auth_headers())
+    assert r.status_code == 200
+    entries = client.get("/api/entries?month=6&year=2027", headers=auth_headers()).json()["entries"]
+    assert entries[0]["notes"] == "Revision de incidencias"
 
 
 def test_create_work_on_special_day_rejected():

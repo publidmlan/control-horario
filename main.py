@@ -160,6 +160,7 @@ class ManualEntryRequest(BaseModel):
     time_in: Optional[str] = None
     time_out: Optional[str] = None
     entry_type: Optional[str] = "presencial"
+    notes: Optional[str] = None
 
 
 class EntryUpdate(BaseModel):
@@ -559,7 +560,7 @@ def create_manual_entry(req: ManualEntryRequest, request: Request, db: Session =
         if err:
             raise HTTPException(status_code=400, detail=err)
 
-    entry = Entry(date=d, time_in=t_in, time_out=t_out, entry_type=entry_type, user_id=None if entry_type == "festivo" else user.id)
+    entry = Entry(date=d, time_in=t_in, time_out=t_out, entry_type=entry_type, notes=req.notes, user_id=None if entry_type == "festivo" else user.id)
     db.add(entry)
     db.commit()
     db.refresh(entry)

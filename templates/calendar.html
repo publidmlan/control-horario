@@ -44,7 +44,7 @@
 <div id="editModal" class="modal" style="display:none">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Editar registro</h3>
+            <h3 id="modalTitle">Editar registro</h3>
             <button class="btn btn-icon" onclick="closeModal()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -89,10 +89,10 @@
             </div>
             <div class="special-note festivo-lock" id="festivoLock" style="display:none">Un dia festivo no puede cambiar a otro tipo. Para desmarcarlo, elimina el registro.</div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-danger" onclick="deleteEntry()">Eliminar</button>
+                <button type="button" class="btn btn-danger" id="deleteBtn" onclick="deleteEntry()">Eliminar</button>
                 <div class="modal-actions-right">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="submit" class="btn btn-primary" id="saveBtn">Guardar</button>
                 </div>
             </div>
         </form>
@@ -254,7 +254,11 @@ async function loadCalendar() {
     document.getElementById('monthlyTotal').textContent = fmtHours(totalMonth);
 }
 
-function showDay(dateStr) {
+let currentDayDate = null;
+let modalMode = 'edit';
+
+function renderDayDetail(dateStr) {
+    currentDayDate = dateStr;
     const dayEntries = allEntries.filter(e => e.date === dateStr);
     const detail = document.getElementById('dayDetail');
     const d = new Date(dateStr + 'T12:00:00');
@@ -265,14 +269,14 @@ function showDay(dateStr) {
         document.getElementById('dayDetailTotal').textContent = '0h 00min';
         document.getElementById('dayDetailLunchWrap').style.display = 'none';
     } else {
-        document.getElementById('dayDetailEntries').innerHTML = dayEntries.map(e => {
+        document.getElementById('dayDetailEntries').innerHTML = dayEntries.map((e, idx) => {
             const sp = isSpecial(e.entry_type);
             const label = TYPE_LABELS[e.entry_type] || e.entry_type;
             const timeText = sp ? label : `${e.time_in} - ${e.time_out || '...'}`;
             const bc = BADGE_CLASS[e.entry_type] || 'presencial';
             const shiftBadge = !sp && e.shift ? `<span class="shift-badge ${e.has_morning && e.has_afternoon ? 'both' : e.shift}">${e.has_morning && e.has_afternoon ? 'Manana / Tarde' : (e.shift === 'manana' ? 'Manana' : 'Tarde')}</span>` : '';
             return `
-            <div class="entry-row" onclick="editEntry(${e.id}, '${e.date}', '${e.time_in}', '${e.time_out || ''}', '${(e.notes || '').replace(/'/g, "\\'")}', '${e.entry_type}')" style="cursor:pointer">
+            <div class="entry-row" data-idx="${idx}" style="cursor:pointer">
                 <div class="entry-main">
                     <span class="entry-time">${timeText}</span>
                     <span class="type-badge ${bc}">${label}</span>
@@ -281,6 +285,12 @@ function showDay(dateStr) {
                 <span class="entry-total">${e.total_hours ? fmtHours(e.total_hours) : (sp ? '' : '...')}</span>
             </div>`;
         }).join('');
+        document.querySelectorAll('#dayDetailEntries .entry-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const e = dayEntries[Number(row.dataset.idx)];
+                editEntry(e.id, e.date, e.time_in, e.time_out || '', e.notes || '', e.entry_type);
+            });
+        });
         const total = dayEntries.reduce((sum, e) => sum + (e.total_hours || 0), 0);
         document.getElementById('dayDetailTotal').textContent = fmtHours(total);
         const totalLunch = dayEntries.reduce((sum, e) => sum + (e.lunch_deducted || 0), 0);
@@ -293,9 +303,55 @@ function showDay(dateStr) {
         }
     }
     detail.style.display = 'block';
+    return dayEntries;
+}
+
+function showDay(dateStr) {
+    const dayEntries = renderDayDetail(dateStr);
+    if (dayEntries.length === 0) {
+        openNewEntry(dateStr);
+        return;
+    }
+    if (dayEntries.length === 1) {
+        const e = dayEntries[0];
+        editEntry(e.id, e.date, e.time_in, e.time_out || '', e.notes || '', e.entry_type);
+        return;
+    }
+    document.getElementById('dayDetail').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function setModalMode(mode) {
+    modalMode = mode;
+    const esAlta = mode === 'create';
+    document.getElementById('modalTitle').textContent = esAlta ? 'Nuevo registro' : 'Editar registro';
+    document.getElementById('deleteBtn').style.display = esAlta ? 'none' : '';
+    document.getElementById('saveBtn').textContent = esAlta ? 'Anadir' : 'Guardar';
+}
+
+function openNewEntry(dateStr) {
+    setModalMode('create');
+    document.getElementById('editId').value = '';
+    document.getElementById('editDate').value = dateStr;
+    document.getElementById('editNotes').value = '';
+    setEditType('presencial');
+    document.querySelectorAll('#editModal .type-btn').forEach(b => {
+        b.disabled = false;
+        b.style.opacity = '1';
+        b.style.cursor = 'pointer';
+    });
+    document.getElementById('festivoLock').style.display = 'none';
+    const tIn = schedule.morning_start;
+    const tOut = schedule.morning_end;
+    document.getElementById('editTimeIn').value = tIn;
+    document.getElementById('editTimeOut').value = tOut;
+    editShifts = shiftsForEntry(tIn, tOut);
+    renderShiftButtons(editShifts);
+    applyShiftConstraints();
+    document.getElementById('editModal').style.display = 'flex';
 }
 
 function editEntry(id, date, timeIn, timeOut, notes, type) {
+    setModalMode('edit');
     document.getElementById('editId').value = id;
     document.getElementById('editDate').value = date;
     const locked = type === 'festivo';
@@ -323,8 +379,10 @@ function closeModal() {
 document.getElementById('editForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('editId').value;
+    const esAlta = modalMode === 'create';
+    const dia = document.getElementById('editDate').value;
     const body = {
-        date: document.getElementById('editDate').value,
+        date: dia,
         notes: document.getElementById('editNotes').value,
         entry_type: editType
     };
@@ -332,15 +390,16 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
         body.time_in = document.getElementById('editTimeIn').value + ':00';
         body.time_out = document.getElementById('editTimeOut').value ? document.getElementById('editTimeOut').value + ':00' : null;
     }
-    const res = await fetch('/api/entries/' + id, {
-        method: 'PUT',
+    const res = await fetch(esAlta ? '/api/entries/manual' : '/api/entries/' + id, {
+        method: esAlta ? 'POST' : 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(body)
     });
     if (res.ok) {
-        showToast('Registro actualizado');
+        showToast(esAlta ? 'Registro anadido' : 'Registro actualizado');
         closeModal();
-        loadCalendar();
+        await loadCalendar();
+        if (dia) renderDayDetail(dia);
     } else {
         const err = await res.json();
         showToast(err.detail || 'Error al guardar', true);
@@ -350,11 +409,15 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
 async function deleteEntry() {
     if (!confirm('¿Eliminar este registro?')) return;
     const id = document.getElementById('editId').value;
+    const dia = currentDayDate;
     const res = await fetch('/api/entries/' + id, {method: 'DELETE'});
     if (res.ok) {
         showToast('Registro eliminado');
         closeModal();
-        loadCalendar();
+        await loadCalendar();
+        if (dia) renderDayDetail(dia);
+    } else {
+        showToast('Error al eliminar', true);
     }
 }
 

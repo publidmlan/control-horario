@@ -83,6 +83,8 @@ Con el servidor en marcha, el movil (conectado al mismo WiFi) puede usarla:
 4. Ver historial, calendario e informes en el menu.
 5. Exportar datos a CSV desde el historial.
 
+En **Calendario**, pulsa un dia para trabajar con el: si no tiene registros se abre el formulario para **crear** uno nuevo; si tiene uno se abre para **editarlo**; si tiene varios se muestra la **lista del dia** debajo del calendario y el editor se abre al pulsar el registro que quieras.
+
 ---
 
 ## Usar la app desde el movil sin tener el PC encendido (en la nube)
