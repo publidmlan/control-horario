@@ -13,6 +13,10 @@ if TEST_DB.exists():
     TEST_DB.unlink()
 os.environ["DATABASE_URL"] = "sqlite:///" + str(TEST_DB)
 os.environ["HORARIO_BACKUP_DIR"] = str(Path(tempfile.gettempdir()) / "horario_backups_test")
+TEST_NOVEDADES = Path(tempfile.gettempdir()) / "horario_novedades_test.html"
+if TEST_NOVEDADES.exists():
+    TEST_NOVEDADES.unlink()
+os.environ["HORARIO_NOVEDADES_FILE"] = str(TEST_NOVEDADES)
 
 import main as app_main
 from fastapi.testclient import TestClient
@@ -37,6 +41,8 @@ def clean_db():
         for f in app_main.BACKUP_DIR.iterdir():
             if f.is_file():
                 f.unlink()
+    if app_main.NOVEDADES_FILE.exists():
+        app_main.NOVEDADES_FILE.unlink()
 
 
 def auth_headers(username="admin", pin="1234"):
@@ -315,6 +321,50 @@ def test_calendario_clic_en_dia_abre_editor_o_alta():
     assert "if (dayEntries.length === 0)" in html
     assert "openNewEntry(dateStr)" in html
     assert "editEntry(e.id, e.date, e.time_in" in html
+
+
+# ------------------------------------------------------------------
+# Novedades
+# ------------------------------------------------------------------
+def test_novedades_default_y_guardado_en_archivo():
+    r = client.get("/api/novedades", headers=auth_headers())
+    assert r.status_code == 200
+    assert "Novedades" in r.json()["content"]
+    assert app_main.NOVEDADES_FILE.exists()
+    assert "Novedades" in app_main.NOVEDADES_FILE.read_text(encoding="utf-8")
+    html = "<h2>Mejoras de noviembre</h2><p>Calendario mejorado.</p>"
+    r = client.post("/api/novedades", json={"content": html}, headers=auth_headers())
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert client.get("/api/novedades", headers=auth_headers()).json()["content"] == html
+    assert app_main.NOVEDADES_FILE.read_text(encoding="utf-8") == html
+
+
+def test_novedades_sobrevive_si_se_borra_el_archivo():
+    html = "<h2>Persistente</h2>"
+    client.post("/api/novedades", json={"content": html}, headers=auth_headers())
+    app_main.NOVEDADES_FILE.unlink()
+    assert client.get("/api/novedades", headers=auth_headers()).json()["content"] == html
+    assert app_main.NOVEDADES_FILE.read_text(encoding="utf-8") == html
+
+
+def test_novedades_solo_las_edita_el_dueno():
+    assert anon.get("/api/novedades").status_code == 401
+    _create_user("lector")
+    lector = auth_headers("lector", "2222")
+    assert client.get("/api/novedades", headers=lector).status_code == 200
+    r = client.post("/api/novedades", json={"content": "<p>No</p>"}, headers=lector)
+    assert r.status_code == 403
+
+
+def test_pagina_novedades_y_menu():
+    r = client.get("/novedades", headers=auth_headers())
+    assert r.status_code == 200
+    assert 'id="novedadesContent"' in r.text
+    assert "/api/novedades" in r.text
+    assert "['/novedades', 'Novedades']" in client.get("/calendar", headers=auth_headers()).text
+    settings_html = client.get("/settings", headers=auth_headers()).text
+    for needle in ["Nuevos Cambios", 'id="novedadesSection"', 'id="novedadesText"', "Guardar novedades"]:
+        assert needle in settings_html
 
 
 # ------------------------------------------------------------------

@@ -303,7 +303,7 @@ body {
 .form-row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
 .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 100px; }
 .form-group label { font-size: 13px; font-weight: 600; color: var(--text-light); }
-.form-group input, .form-group select {
+.form-group input, .form-group select, .form-group textarea {
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -311,7 +311,16 @@ body {
     outline: none;
     transition: border-color 0.15s;
 }
-.form-group input:focus { border-color: var(--primary); }
+.form-group input:focus, .form-group textarea:focus { border-color: var(--primary); }
+.form-group textarea {
+    width: 100%;
+    min-height: 240px;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.45;
+    box-sizing: border-box;
+}
 
 .manual-form .btn { min-width: 80px; justify-content: center; }
 
@@ -1413,4 +1422,48 @@ body {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
+}
+
+.novedades-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.novedades-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+}
+.novedades-content {
+    line-height: 1.6;
+    overflow-wrap: break-word;
+}
+.novedades-content h1,
+.novedades-content h2,
+.novedades-content h3 {
+    margin: 0 0 12px;
+}
+.novedades-content h2 { font-size: 20px; }
+.novedades-content h3 { font-size: 17px; }
+.novedades-content p,
+.novedades-content ul,
+.novedades-content ol {
+    margin: 0 0 12px;
+}
+.novedades-content ul,
+.novedades-content ol {
+    padding-left: 24px;
+}
+.novedades-content li { margin-bottom: 6px; }
+.novedades-content img { max-width: 100%; height: auto; border-radius: 8px; }
+.novedades-content pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+}
+.novedades-content code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }

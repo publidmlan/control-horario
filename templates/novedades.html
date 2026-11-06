@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar">
+    <a href="/dashboard" class="nav-brand">Control Horario</a>
+</nav>
+
+<div class="container">
+    <div class="novedades-card">
+        <div id="novedadesContent" class="novedades-content">
+            <p class="settings-desc">Cargando novedades...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadNovedades() {
+    const cont = document.getElementById('novedadesContent');
+    try {
+        const res = await fetch('/api/novedades');
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        if (!res.ok) {
+            cont.innerHTML = '<p class="settings-desc">No se pudieron cargar las novedades.</p>';
+            return;
+        }
+        const data = await res.json();
+        cont.innerHTML = data.content || '<p class="settings-desc">No hay novedades publicadas.</p>';
+    } catch (e) {
+        cont.innerHTML = '<p class="settings-desc">No se pudieron cargar las novedades.</p>';
+    }
+}
+
+loadNovedades();
+</script>
+{% endblock %}

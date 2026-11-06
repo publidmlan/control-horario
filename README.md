@@ -36,6 +36,7 @@ El script hace todo solo:
 - Entra con tu **nombre y PIN**. La primera vez usas **admin** / PIN **1234**.
 - Desde **Ajustes -> Cuentas de usuario** (solo visible para el administrador) puedes crear cuentas para otras personas o generar un **codigo de invitacion** que les envies por WhatsApp/mail: ellas abrirán el enlace y se registran solas con su nombre y su PIN.
 - Cada usuario ve solo sus propios registros, su calendario y sus ajustes; los festivos del calendario son comunes para todos.
+- En **Ajustes -> Nuevos Cambios** (solo administrador) puedes escribir las novedades de la aplicacion con formato HTML; todos los usuarios las veran en el menu **Novedades**. El contenido se guarda en el archivo `novedades.html` y tambien en la base de datos.
 - Una vez dentro, puedes cambiar tu PIN desde **Ajustes -> Cambiar PIN**.
 - No cierres la ventana negra (Windows) / terminal mientras uses la aplicacion; cerrarla detiene la app. Para detenerla tambien puedes pulsar `Ctrl+C`.
 
@@ -72,6 +73,7 @@ Con el servidor en marcha, el movil (conectado al mismo WiFi) puede usarla:
 - En **Ajustes -> Base de Datos** puedes **Guardar** una copia de seguridad (archivo `.db.gz`), **Restaurarla** sobre la app o **Eliminar base de datos**, que borra los registros, las invitaciones y los usuarios (menos `admin`, que vuelve con PIN **1234**); **los festivos del calendario se conservan siempre** y **los ajustes se mantienen tal como estaban**.
 - Tambien puedes usar **Hacer backup rapido**: guarda una copia completa dentro de la aplicacion y te muestra una **lista de backups** con botones para **Restaurar**, **Descargar** o **Borrar** cada uno (muy util para probar cambios y volver atras).
 - Al actualizar la aplicacion por una version nueva, tus datos se conservan (se usan el mismo `horarios.db` y los mismos ajustes).
+- El contenido de **Novedades** tambien entra en las copias de seguridad y se conserva al usar **Eliminar base de datos**.
 
 ---
 

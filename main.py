@@ -36,6 +36,12 @@ PIN_DEFAULT = os.getenv("APP_PIN", "1234")
 BACKUP_DIR = Path(os.getenv("HORARIO_BACKUP_DIR", "backups"))
 BACKUP_NAME_RE = re.compile(r"^backup_[0-9]{8}_[0-9]{6}\.horarios\.gz$")
 
+NOVEDADES_FILE = Path(os.getenv("HORARIO_NOVEDADES_FILE", str(Path(__file__).with_name("novedades.html"))))
+NOVEDADES_DEFAULT = (
+    "<h2>Novedades</h2>\n"
+    "<p>Todavia no hay novedades publicadas.</p>\n"
+)
+
 SPECIAL_TYPES = {"festivo", "vacaciones", "ap", "otro"}
 NON_WORK_TYPES = {"festivo", "vacaciones", "ap"}
 LUNCH_KEYS = {"lunch_start", "lunch_end"}
@@ -150,6 +156,44 @@ def _set_setting(db: Session, key: str, value: str, user_id: int = None):
         db.add(Setting(key=key, value=str(value)))
 
 
+def _read_novedades_file():
+    try:
+        return NOVEDADES_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except Exception as exc:
+        print(f"[novedades] No se pudo leer {NOVEDADES_FILE}: {exc}")
+        return None
+
+
+def _write_novedades_file(content: str):
+    try:
+        NOVEDADES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = NOVEDADES_FILE.with_name(NOVEDADES_FILE.name + ".tmp")
+        tmp.write_text(content, encoding="utf-8")
+        os.replace(tmp, NOVEDADES_FILE)
+    except Exception as exc:
+        print(f"[novedades] No se pudo guardar {NOVEDADES_FILE}: {exc}")
+
+
+def get_novedades(db: Session) -> str:
+    content = get_setting(db, "novedades_html", "")
+    en_archivo = _read_novedades_file()
+    if not content:
+        content = en_archivo if en_archivo is not None else NOVEDADES_DEFAULT
+        _set_setting(db, "novedades_html", content)
+        db.commit()
+    if en_archivo != content:
+        _write_novedades_file(content)
+    return content
+
+
+def save_novedades(db: Session, content: str):
+    _set_setting(db, "novedades_html", content)
+    db.commit()
+    _write_novedades_file(content)
+
+
 @app.on_event("startup")
 def startup():
     init_db()
@@ -169,6 +213,10 @@ class EntryUpdate(BaseModel):
     time_out: Optional[str] = None
     notes: Optional[str] = None
     entry_type: Optional[str] = None
+
+
+class NovedadesUpdate(BaseModel):
+    content: str = ""
 
 
 def normalize_entry_type(t: str) -> str:
@@ -1379,6 +1427,22 @@ def _require_owner(user: User):
         raise HTTPException(status_code=403, detail="Solo el administrador puede hacer esto")
 
 
+@app.get("/api/novedades")
+def get_novedades_api(request: Request, db: Session = Depends(get_db)):
+    check_auth(request, db)
+    return {"content": get_novedades(db)}
+
+
+@app.post("/api/novedades")
+def update_novedades(req: NovedadesUpdate, request: Request, db: Session = Depends(get_db)):
+    user = check_auth(request, db)
+    _require_owner(user)
+    if len(req.content) > 200000:
+        raise HTTPException(status_code=400, detail="El texto es demasiado largo (maximo 200000 caracteres)")
+    save_novedades(db, req.content)
+    return {"ok": True}
+
+
 def _validate_username(db: Session, username: str) -> str:
     username = username.strip()
     if len(username) < 2:
@@ -1529,6 +1593,11 @@ def history_page(request: Request):
 @app.get("/reports", response_class=HTMLResponse)
 def reports_page(request: Request):
     return templates.TemplateResponse("reports.html", {"request": request})
+
+
+@app.get("/novedades", response_class=HTMLResponse)
+def novedades_page(request: Request):
+    return templates.TemplateResponse("novedades.html", {"request": request})
 
 
 @app.get("/settings", response_class=HTMLResponse)

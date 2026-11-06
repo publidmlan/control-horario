@@ -114,6 +114,21 @@
         </form>
     </div>
 
+    <div class="settings-section" id="novedadesSection" style="display:none">
+        <h3>Nuevos Cambios</h3>
+        <p class="settings-desc">Escribe aqui las novedades que quieras publicar. Se guardan en el archivo de texto plano <b>novedades.html</b> (junto a la aplicacion) y se muestran en el menu <b>Novedades</b>. Puedes usar formato HTML, por ejemplo &lt;h2&gt;Titulo&lt;/h2&gt;, &lt;b&gt;negrita&lt;/b&gt; o &lt;ul&gt;&lt;li&gt;elemento&lt;/li&gt;&lt;/ul&gt;.</p>
+        <form id="novedadesForm" class="settings-form">
+            <div class="form-group">
+                <label for="novedadesText">Contenido (HTML)</label>
+                <textarea id="novedadesText" rows="14" spellcheck="false" placeholder="&lt;h2&gt;Novedades&lt;/h2&gt;&#10;&lt;p&gt;Aqui puedes contar los cambios...&lt;/p&gt;"></textarea>
+            </div>
+            <div class="novedades-actions">
+                <button type="submit" class="btn btn-primary">Guardar novedades</button>
+                <a href="/novedades" target="_blank" class="btn btn-secondary">Ver pagina</a>
+            </div>
+        </form>
+    </div>
+
     <div class="settings-section" id="dbSection">
         <h3>Base de Datos</h3>
         <p class="settings-desc">Gestiona los datos de la aplicacion. Las copias de seguridad incluyen todo el contenido de la base de datos, incluyendo ajustes, registros y cualquier funcionalidad futura, por lo que sirven como respaldo completo del sistema.</p>
@@ -238,11 +253,36 @@ async function loadMe() {
     IS_OWNER = me.is_owner;
     if (IS_OWNER) {
         document.getElementById('usersSection').style.display = 'block';
+        document.getElementById('novedadesSection').style.display = 'block';
         loadUsers();
         loadInvites();
         loadBackups();
+        loadNovedadesAdmin();
     } else {
         document.getElementById('dbSection').style.display = 'none';
+    }
+}
+
+async function loadNovedadesAdmin() {
+    const res = await fetch('/api/novedades');
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById('novedadesText').value = data.content || '';
+}
+
+async function saveNovedades(e) {
+    e.preventDefault();
+    const content = document.getElementById('novedadesText').value;
+    const res = await fetch('/api/novedades', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({content})
+    });
+    if (res.ok) {
+        showToast('Novedades guardadas');
+    } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || 'No se pudieron guardar las novedades', true);
     }
 }
 
@@ -417,6 +457,7 @@ function downloadBackupFile(name) {
 }
 
 document.getElementById('createUserForm').addEventListener('submit', createUser);
+document.getElementById('novedadesForm').addEventListener('submit', saveNovedades);
 loadMe();
 
 const WEEK_DAYS = [
